@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1c110a">
+<title>Employee Portal | Montney Projects Corp</title>
+<style>
+  /* Change these to match the main site exactly. */
+  :root {
+    --bg: #1c110a;
+    --panel: #261910;
+    --panel-2: #302015;
+    --line: #47301f;
+    --text: #f3ebe3;
+    --muted: #b8a595;
+    --accent: #d98a3d;
+    --accent-ink: #1c110a;
+    --ok: #6fbf8b;
+    --warn: #e6b450;
+    --bad: #e2725b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    min-height: 100vh;
+  }
+  a { color: var(--accent); }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 16px 64px; }
+  header.top {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 18px 16px; border-bottom: 1px solid var(--line);
+    max-width: 960px; margin: 0 auto 24px;
+  }
+  .brand { font-weight: 700; letter-spacing: .14em; text-transform: uppercase; font-size: 14px; }
+  .brand small { display: block; font-weight: 400; letter-spacing: .08em; color: var(--muted); font-size: 12px; }
+  .who { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--muted); min-width: 0; }
+  .who span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -.01em; }
+  h2 { font-size: 15px; margin: 0 0 14px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  p.sub { margin: 0 0 20px; color: var(--muted); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px; margin-bottom: 20px; }
+  .narrow { max-width: 420px; margin: 8vh auto 0; }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+  input, select {
+    width: 100%; padding: 11px 12px; border-radius: 7px; border: 1px solid var(--line);
+    background: var(--bg); color: var(--text); font: inherit;
+  }
+  input:focus, select:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=file] { padding: 9px; }
+  .field { margin-bottom: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
+  @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+  button {
+    font: inherit; font-weight: 600; cursor: pointer; border-radius: 7px;
+    padding: 11px 18px; border: 1px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+  }
+  button.ghost { background: transparent; color: var(--text); border-color: var(--line); font-weight: 500; }
+  button.small { padding: 6px 12px; font-size: 14px; white-space: nowrap; }
+  button.link { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 500; text-decoration: underline; }
+  button:disabled { opacity: .55; cursor: default; }
+  .msg { margin: 12px 0 0; font-size: 14px; min-height: 1.4em; }
+  .msg.err { color: var(--bad); }
+  .msg.good { color: var(--ok); }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
+  .toolbar input { flex: 1 1 200px; }
+  .toolbar select { flex: 0 1 220px; }
+  .doc {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    padding: 14px 0; border-top: 1px solid var(--line);
+  }
+  .doc:first-child { border-top: 0; }
+  .doc .main { flex: 1 1 240px; min-width: 0; }
+  .doc .title { font-weight: 600; overflow-wrap: anywhere; }
+  .doc .meta { font-size: 13px; color: var(--muted); }
+  .doc .actions { display: flex; gap: 8px; }
+  .chip { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; }
+  .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); } .chip.none { color: var(--muted); }
+  .empty { color: var(--muted); padding: 8px 0; }
+  .emp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .emp:first-child { border-top: 0; }
+  .emp .main { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+  .counts { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+  .count { flex: 1 1 140px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+  .count b { display: block; font-size: 26px; line-height: 1.1; }
+  .count span { font-size: 13px; color: var(--muted); }
+  .hhead { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:14px; }
+  .hhead h2 { margin:0; }
+  .hhead select { width:auto; min-width:180px; }
+  .pnav { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; }
+  .pnav b { font-size:17px; }
+  .pnav button { min-width:44px; min-height:40px; font-size:20px; line-height:1; }
+  .cal { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:6px; }
+  .dow { font-size:12px; color:var(--muted); text-align:center; padding-bottom:2px; }
+  .day { min-height:58px; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); padding:6px; text-align:left; font:inherit; font-size:12px; display:flex; flex-direction:column; justify-content:space-between; }
+  .day b { font-size:17px; color:var(--accent); }
+  button.day { cursor:pointer; background:var(--panel-2); }
+  button.day.sel { outline:2px solid var(--accent); outline-offset:0; }
+  .day.empty { visibility:hidden; }
+  .day .n { color:var(--muted); }
+  .hsum { margin:14px 0 0; font-size:15px; color:var(--muted); }
+  .hsum b { color:var(--text); }
+  .hday { margin-top:12px; border-top:1px solid var(--line); padding-top:10px; font-size:15px; }
+  .hday div { padding:4px 0; }
+  .hnote { margin:12px 0 0; font-size:13px; color:var(--muted); }
+  @media (max-width:420px) { .day { min-height:50px; padding:4px; } .day b { font-size:15px; } }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">Montney Projects<small>Employee Portal</small></div>
+  <div class="who" id="who" hidden>
+    <span id="whoName"></span>
+    <button class="ghost small" id="signOut">Sign out</button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- Sign in -->
+  <section id="vLogin" class="card narrow" hidden>
+    <h1>Sign in</h1>
+    <p class="sub">Use the email your invite was sent to.</p>
+    <form id="loginForm">
+      <div class="field"><label for="liEmail">Email</label><input id="liEmail" type="email" autocomplete="username" required></div>
+      <div class="field"><label for="liPass">Password</label><input id="liPass" type="password" autocomplete="current-password" required></div>
+      <button id="liBtn">Sign in</button>
+      <p class="msg" id="liMsg"></p>
+    </form>
+    <p style="margin:16px 0 0;font-size:14px"><button class="link" id="forgot" type="button">Forgot your password?</button></p>
+  </section>
+
+  <!-- Set a password (invite or reset link) -->
+  <section id="vSetPw" class="card narrow" hidden>
+    <h1>Set your password</h1>
+    <p class="sub">Pick a password of at least 8 characters.</p>
+    <form id="pwForm">
+      <div class="field"><label for="pw1">New password</label><input id="pw1" type="password" autocomplete="new-password" minlength="8" required></div>
+      <div class="field"><label for="pw2">Type it again</label><input id="pw2" type="password" autocomplete="new-password" minlength="8" required></div>
+      <button id="pwBtn">Save password</button>
+      <p class="msg" id="pwMsg"></p>
+    </form>
+  </section>
+
+  <!-- Signed-in app -->
+  <section id="vApp" hidden>
+    <h1 id="appTitle">My documents</h1>
+    <p class="sub" id="appSub">Upload your tickets, certificates and orientations. Add the expiry date so nothing lapses.</p>
+
+    <div class="counts" id="counts" hidden>
+      <div class="count"><b id="cEmp">0</b><span>Employees</span></div>
+      <div class="count"><b id="cDocs">0</b><span>Documents</span></div>
+      <div class="count"><b id="cSoon">0</b><span>Expiring in 60 days</span></div>
+      <div class="count"><b id="cExp">0</b><span>Expired</span></div>
+    </div>
+
+    <div class="card" id="hoursCard">
+      <div class="hhead"><h2 id="hTitle">My hours</h2><select id="hrsWho" aria-label="Employee" hidden></select></div>
+      <div class="pnav">
+        <button class="ghost small" id="pPrev" type="button" aria-label="Previous pay period">&lsaquo;</button>
+        <b id="pLabel"></b>
+        <button class="ghost small" id="pNext" type="button" aria-label="Next pay period">&rsaquo;</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <p class="hsum" id="hSum"></p>
+      <div class="hday" id="hDay" hidden></div>
+      <p class="msg" id="hMsg"></p>
+      <p class="hnote">For your reference only. Updated every hour from field tickets.</p>
+    </div>
+
+    <div class="card">
+      <h2>Add a document</h2>
+      <form id="upForm">
+        <div class="grid">
+          <div class="field" id="upEmpField" hidden><label for="upEmp">Employee</label><select id="upEmp"></select></div>
+          <div class="field"><label for="upType">Type</label>
+            <select id="upType" required>
+              <option value="ticket">Ticket (H2S, first aid, etc.)</option>
+              <option value="certificate">Certificate</option>
+              <option value="orientation">Orientation</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="field"><label for="upTitle">Name of the document</label><input id="upTitle" maxlength="120" placeholder="H2S Alive" required></div>
+          <div class="field"><label for="upIssue">Issue date (optional)</label><input id="upIssue" type="date"></div>
+          <div class="field"><label for="upExpiry">Expiry date (leave blank if none)</label><input id="upExpiry" type="date"></div>
+          <div class="field"><label for="upFile">Photo or PDF</label><input id="upFile" type="file" accept="image/*,application/pdf" required></div>
+        </div>
+        <button id="upBtn">Upload</button>
+        <p class="msg" id="upMsg"></p>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2 id="listHead">Documents</h2>
+      <div class="toolbar" id="toolbar" hidden>
+        <input id="q" type="search" placeholder="Search by employee or document">
+        <select id="filter">
+          <option value="all">All documents</option>
+          <option value="soon">Expiring in 60 days</option>
+          <option value="expired">Expired</option>
+          <option value="noexp">No expiry date</option>
+        </select>
+        <button class="ghost" id="exportBtn" type="button">Export CSV</button>
+      </div>
+      <div id="docList"></div>
+    </div>
+
+    <div class="card" id="empCard" hidden>
+      <h2>Employees</h2>
+      <div id="empList"></div>
+    </div>
+  </section>
+
+  <p class="msg err" id="fatal" style="text-align:center"></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  // Both values are public by design. Never put a secret or service_role key in this file.
+  const SUPABASE_URL = 'https://nwcbvchcdsbwwnnbtyht.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_JtICuOehqdwzQOm8v0i-SA_qf21Bh0e';
+  const BUCKET = 'employee-docs';
+  const SOON_DAYS = 60;
+  const MAX_BYTES = 10 * 1024 * 1024;
+
+  const $ = id => document.getElementById(id);
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  };
+  const say = (id, text, kind) => { const n = $(id); n.textContent = text || ''; n.className = 'msg' + (kind ? ' ' + kind : ''); };
+  const show = name => ['vLogin', 'vSetPw', 'vApp'].forEach(v => { $(v).hidden = v !== name; });
+
+  if (!window.supabase) { $('fatal').textContent = 'The portal could not load. Check your connection and refresh.'; return; }
+
+  // An invite or password-reset link lands here with its type in the address.
+  const linkType = new URLSearchParams(location.hash.slice(1)).get('type');
+  const needsPassword = linkType === 'invite' || linkType === 'recovery';
+
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const state = { user: null, profile: null, admin: false, docs: [], people: [], settingPw: false };
+
+  // ---------- helpers ----------
+  const today = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; };
+  const daysLeft = iso => iso ? Math.round((new Date(iso + 'T00:00:00') - today()) / 86400000) : null;
+  const status = iso => {
+    const d = daysLeft(iso);
+    if (d === null) return { key: 'noexp', cls: 'none', label: 'No expiry' };
+    if (d < 0) return { key: 'expired', cls: 'bad', label: 'Expired ' + (-d) + 'd ago' };
+    if (d <= SOON_DAYS) return { key: 'soon', cls: 'warn', label: d === 0 ? 'Expires today' : 'Expires in ' + d + 'd' };
+    return { key: 'ok', cls: 'ok', label: 'Valid' };
+  };
+  const nameOf = p => p ? (p.full_name || p.email || 'Unknown') : 'Unknown';
+  const personById = id => state.people.find(p => p.id === id);
+  const typeLabel = { ticket: 'Ticket', certificate: 'Certificate', orientation: 'Orientation', other: 'Other' };
+
+  // Shrink phone photos so the free storage lasts. PDFs and anything unreadable go up as-is.
+  async function shrink(file) {
+    if (!file.type.startsWith('image/') || file.type === 'image/gif') return { blob: file, ext: (file.name.split('.').pop() || 'bin').toLowerCase() };
+    try {
+      const bmp = await createImageBitmap(file);
+      const scale = Math.min(1, 1600 / Math.max(bmp.width, bmp.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(bmp.width * scale); c.height = Math.round(bmp.height * scale);
+      c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+      const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.8));
+      if (blob && blob.size < file.size) return { blob, ext: 'jpg' };
+    } catch (e) { /* fall through to the original file */ }
+    return { blob: file, ext: (file.name.split('.').pop() || 'jpg').toLowerCase() };
+  }
+
+  // ---------- data ----------
+  async function loadAll() {
+    const docsQ = sb.from('documents').select('*').order('expiry_date', { ascending: true, nullsFirst: false });
+    const peopleQ = sb.from('profiles').select('*').order('full_name', { ascending: true });
+    const [d, p] = await Promise.all([docsQ, peopleQ]);
+    if (d.error || p.error) { say('upMsg', 'Could not load documents: ' + (d.error || p.error).message, 'err'); return; }
+    state.docs = d.data || [];
+    state.people = p.data || [];
+    render();
+  }
+
+  // ---------- rendering ----------
+  function render() {
+    const admin = state.admin;
+    $('appTitle').textContent = admin ? 'All employee documents' : 'My documents';
+    $('appSub').hidden = admin;
+    $('counts').hidden = !admin;
+    $('toolbar').hidden = !admin;
+    $('empCard').hidden = !admin;
+    $('upEmpField').hidden = !admin;
+
+    if (admin) {
+      const sel = $('upEmp'), keep = sel.value || state.user.id;
+      sel.replaceChildren(...state.people.map(p => { const o = el('option', null, nameOf(p)); o.value = p.id; return o; }));
+      sel.value = keep;
+      $('cEmp').textContent = state.people.length;
+      $('cDocs').textContent = state.docs.length;
+      $('cSoon').textContent = state.docs.filter(x => status(x.expiry_date).key === 'soon').length;
+      $('cExp').textContent = state.docs.filter(x => status(x.expiry_date).key === 'expired').length;
+      renderPeople();
+    }
+    renderDocs();
+  }
+
+  function visibleDocs() {
+    if (!state.admin) return state.docs;
+    const q = $('q').value.trim().toLowerCase(), f = $('filter').value;
+    return state.docs.filter(d => {
+      if (f !== 'all' && status(d.expiry_date).key !== f) return false;
+      if (!q) return true;
+      return (d.title + ' ' + nameOf(personById(d.employee_id)) + ' ' + (typeLabel[d.doc_type] || '')).toLowerCase().includes(q);
+    });
+  }
+
+  function renderDocs() {
+    const list = $('docList'), docs = visibleDocs();
+    list.replaceChildren();
+    if (!docs.length) { list.append(el('p', 'empty', state.docs.length ? 'Nothing matches that search.' : 'No documents yet.')); return; }
+    for (const d of docs) {
+      const row = el('div', 'doc'), main = el('div', 'main'), st = status(d.expiry_date);
+      main.append(el('div', 'title', d.title));
+      const bits = [typeLabel[d.doc_type] || d.doc_type];
+      if (state.admin) bits.unshift(nameOf(personById(d.employee_id)));
+      if (d.issue_date) bits.push('Issued ' + d.issue_date);
+      if (d.expiry_date) bits.push('Expires ' + d.expiry_date);
+      main.append(el('div', 'meta', bits.join(' · ')));
+      const actions = el('div', 'actions');
+      const view = el('button', 'ghost small', 'View'); view.type = 'button'; view.onclick = () => openDoc(d, view);
+      const del = el('button', 'ghost small', 'Delete'); del.type = 'button'; del.onclick = () => removeDoc(d, del);
+      actions.append(view, del);
+      row.append(main, el('span', 'chip ' + st.cls, st.label), actions);
+      list.append(row);
+    }
+  }
+
+  function renderPeople() {
+    const list = $('empList');
+    list.replaceChildren();
+    for (const p of state.people) {
+      const row = el('div', 'emp'), main = el('div', 'main');
+      const n = state.docs.filter(d => d.employee_id === p.id).length;
+      main.append(el('div', 'title', nameOf(p) + (p.role === 'admin' ? ' (admin)' : '')));
+      const tn = crewNameOf(p);
+      main.append(el('div', 'meta', (p.email || '') + ' · ' + n + (n === 1 ? ' document' : ' documents') + (tn ? ' · tickets as "' + tn + '"' : ' · no ticket name')));
+      const tick = el('button', 'ghost small', 'Ticket name'); tick.type = 'button';
+      tick.onclick = async () => {
+        const v = prompt('Name used on field tickets for ' + nameOf(p) + '. Leave blank to use their first name.', p.ticket_name || '');
+        if (v === null) return;
+        const { error } = await sb.from('profiles').update({ ticket_name: v.trim() || null }).eq('id', p.id);
+        if (error) alert('Could not save: ' + error.message); else { await loadAll(); setupHours(); loadHours(); }
+      };
+      const edit = el('button', 'ghost small', 'Edit name'); edit.type = 'button';
+      edit.onclick = async () => {
+        const v = prompt('Full name for ' + (p.email || 'this employee'), p.full_name || '');
+        if (v === null) return;
+        const { error } = await sb.from('profiles').update({ full_name: v.trim() || null }).eq('id', p.id);
+        if (error) alert('Could not save: ' + error.message); else { await loadAll(); setupHours(); loadHours(); }
+      };
+      const btns = el('div', 'actions'); btns.append(tick, edit);
+      row.append(main, btns);
+      list.append(row);
+    }
+  }
+
+  // ---------- actions ----------
+  async function openDoc(d, btn) {
+    const win = window.open('', '_blank'); // open first so phones do not block the tab
+    btn.disabled = true;
+    const { data, error } = await sb.storage.from(BUCKET).createSignedUrl(d.file_path, 120);
+    btn.disabled = false;
+    if (error || !data) { if (win) win.close(); alert('Could not open the file: ' + (error ? error.message : 'unknown error')); return; }
+    if (win) win.location = data.signedUrl; else location.href = data.signedUrl;
+  }
+
+  async function removeDoc(d, btn) {
+    if (!confirm('Delete "' + d.title + '"? This cannot be undone.')) return;
+    btn.disabled = true;
+    const { error } = await sb.from('documents').delete().eq('id', d.id);
+    if (error) { btn.disabled = false; alert('Could not delete: ' + error.message); return; }
+    await sb.storage.from(BUCKET).remove([d.file_path]);
+    loadAll();
+  }
+
+  $('upForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const file = $('upFile').files[0];
+    if (!file) return;
+    const owner = state.admin ? $('upEmp').value : state.user.id;
+    $('upBtn').disabled = true; say('upMsg', 'Uploading…');
+    try {
+      const { blob, ext } = await shrink(file);
+      if (blob.size > MAX_BYTES) throw new Error('That file is over 10 MB. Take a new photo or use a smaller PDF.');
+      const path = owner + '/' + crypto.randomUUID() + '.' + ext.replace(/[^a-z0-9]/g, '').slice(0, 5);
+      const up = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type || file.type || 'application/octet-stream' });
+      if (up.error) throw up.error;
+      const ins = await sb.from('documents').insert({
+        employee_id: owner, doc_type: $('upType').value, title: $('upTitle').value.trim(),
+        issue_date: $('upIssue').value || null, expiry_date: $('upExpiry').value || null, file_path: path
+      });
+      if (ins.error) { await sb.storage.from(BUCKET).remove([path]); throw ins.error; }
+      const keepEmp = $('upEmp').value;
+      $('upForm').reset(); if (state.admin) $('upEmp').value = keepEmp;
+      say('upMsg', 'Saved.', 'good');
+      await loadAll();
+    } catch (err) { say('upMsg', err.message || 'Upload failed.', 'err'); }
+    $('upBtn').disabled = false;
+  });
+
+  $('q').addEventListener('input', renderDocs);
+  $('filter').addEventListener('change', renderDocs);
+
+  $('exportBtn').addEventListener('click', () => {
+    const cell = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const rows = [['Employee', 'Email', 'Type', 'Document', 'Issue date', 'Expiry date', 'Status', 'Uploaded']];
+    for (const d of visibleDocs()) {
+      const p = personById(d.employee_id);
+      rows.push([nameOf(p), p ? p.email : '', typeLabel[d.doc_type] || d.doc_type, d.title, d.issue_date, d.expiry_date, status(d.expiry_date).label, (d.uploaded_at || '').slice(0, 10)]);
+    }
+    const a = el('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + rows.map(r => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv' }));
+    a.download = 'montney-documents-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click(); URL.revokeObjectURL(a.href);
+  });
+
+  // ---------- hours calendar ----------
+  const isoDate = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const periodOf = d => d.getDate() <= 15
+    ? { s: new Date(d.getFullYear(), d.getMonth(), 1), e: new Date(d.getFullYear(), d.getMonth(), 15) }
+    : { s: new Date(d.getFullYear(), d.getMonth(), 16), e: new Date(d.getFullYear(), d.getMonth() + 1, 0) };
+  const shiftPeriod = (p, dir) => {
+    const s = p.s, first = s.getDate() === 1;
+    if (dir < 0) return periodOf(first ? new Date(s.getFullYear(), s.getMonth(), 0) : new Date(s.getFullYear(), s.getMonth(), 1));
+    return periodOf(first ? new Date(s.getFullYear(), s.getMonth(), 16) : new Date(s.getFullYear(), s.getMonth() + 1, 1));
+  };
+  const crewNameOf = p => {
+    if (!p) return '';
+    const t = (p.ticket_name || '').trim() || ((p.full_name || '').trim().split(/\s+/)[0] || '');
+    return t.toLowerCase();
+  };
+  const fmtH = n => (Math.round(n * 100) / 100).toString();
+  const shortDate = d => d.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+
+  function setupHours() {
+    if (!state.period) state.period = periodOf(new Date());
+    $('hTitle').textContent = state.admin ? 'Employee hours' : 'My hours';
+    const sel = $('hrsWho');
+    sel.hidden = !state.admin;
+    if (state.admin) {
+      const keep = sel.value;
+      const people = state.people.filter(p => p.role !== 'admin').concat(state.people.filter(p => p.role === 'admin'));
+      sel.replaceChildren(...people.map(p => { const o = el('option', null, nameOf(p)); o.value = p.id; return o; }));
+      if (keep && people.some(p => p.id === keep)) sel.value = keep;
+    }
+  }
+
+  async function loadHours() {
+    const p = state.period;
+    say('hMsg', '');
+    const crew = state.admin ? crewNameOf(personById($('hrsWho').value)) : crewNameOf(state.profile);
+    if (!crew) {
+      state.hours = [];
+      renderHours(state.admin ? 'Give this employee a name (Edit name) so their tickets can be matched.' : 'Your account has no name on it yet. Ask the office to add it.');
+      return;
+    }
+    let q = sb.from('hours').select('work_date,hours,shop_hours,truck,client,job,role,crew_name')
+      .gte('work_date', isoDate(p.s)).lte('work_date', isoDate(p.e)).order('work_date', { ascending: true });
+    if (state.admin) q = q.eq('crew_name', crew);
+    const { data, error } = await q;
+    state.hours = error ? [] : (data || []);
+    state.selDay = null;
+    renderHours(error ? 'Could not load hours: ' + error.message : '');
+  }
+
+  function renderHours(note) {
+    const p = state.period, today = new Date();
+    $('pLabel').textContent = shortDate(p.s) + ' to ' + shortDate(p.e) + ', ' + p.e.getFullYear();
+    $('pNext').disabled = shiftPeriod(p, 1).s > today;
+    const byDay = {};
+    for (const r of state.hours) {
+      const d = (byDay[r.work_date] = byDay[r.work_date] || { total: 0, rows: [] });
+      d.total += (Number(r.hours) || 0) + (Number(r.shop_hours) || 0);
+      d.rows.push(r);
+    }
+    const cal = $('cal');
+    cal.replaceChildren(...['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(t => el('div', 'dow', t)));
+    for (let i = 0; i < p.s.getDay(); i++) cal.append(el('div', 'day empty'));
+    let total = 0, days = 0;
+    for (let d = new Date(p.s); d <= p.e; d.setDate(d.getDate() + 1)) {
+      const key = isoDate(d), info = byDay[key];
+      if (info && info.total > 0) {
+        total += info.total; days++;
+        const b = el('button', 'day' + (state.selDay === key ? ' sel' : ''));
+        b.type = 'button';
+        b.setAttribute('aria-label', shortDate(d) + ': ' + fmtH(info.total) + ' hours');
+        b.append(el('span', 'n', String(d.getDate())), el('b', null, fmtH(info.total)));
+        b.onclick = () => { state.selDay = state.selDay === key ? null : key; renderHours(note); };
+        cal.append(b);
+      } else {
+        const c = el('div', 'day');
+        c.append(el('span', 'n', String(d.getDate())));
+        cal.append(c);
+      }
+    }
+    const sum = $('hSum');
+    sum.replaceChildren();
+    if (days) sum.append('Total this period: ', el('b', null, fmtH(total) + ' hrs'), ' over ' + days + (days === 1 ? ' day' : ' days') + '. Tap a day for details.');
+    else sum.textContent = 'No hours on file for this period.';
+    const box = $('hDay');
+    if (state.selDay && byDay[state.selDay]) {
+      box.hidden = false;
+      const [y, m, dd] = state.selDay.split('-').map(Number);
+      box.replaceChildren(el('div', null, new Date(y, m - 1, dd).toLocaleDateString('en-CA', { weekday: 'long', month: 'long', day: 'numeric' })));
+      for (const r of byDay[state.selDay].rows) {
+        const bits = ['Truck ' + (r.truck || '?')];
+        if (r.client) bits.push(r.client);
+        if (r.job) bits.push('Job ' + r.job);
+        let h = fmtH(Number(r.hours) || 0) + ' hrs';
+        if (Number(r.shop_hours)) h += ' + ' + fmtH(Number(r.shop_hours)) + ' shop';
+        bits.push(h);
+        box.append(el('div', 'meta', bits.join(' · ')));
+      }
+    } else box.hidden = true;
+    say('hMsg', note || '', note ? 'err' : '');
+  }
+
+  $('pPrev').addEventListener('click', () => { state.period = shiftPeriod(state.period, -1); loadHours(); });
+  $('pNext').addEventListener('click', () => { state.period = shiftPeriod(state.period, 1); loadHours(); });
+  $('hrsWho').addEventListener('change', loadHours);
+
+  // ---------- sign in / out ----------
+  $('loginForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    $('liBtn').disabled = true; say('liMsg', 'Signing in…');
+    const { error } = await sb.auth.signInWithPassword({ email: $('liEmail').value.trim(), password: $('liPass').value });
+    $('liBtn').disabled = false;
+    say('liMsg', error ? 'Wrong email or password.' : '', error ? 'err' : '');
+  });
+
+  $('forgot').addEventListener('click', async () => {
+    const email = $('liEmail').value.trim();
+    if (!email) { say('liMsg', 'Type your email above first, then click this again.', 'err'); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    say('liMsg', error ? error.message : 'If that email has an account, a reset link is on its way.', error ? 'err' : 'good');
+  });
+
+  $('pwForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    if ($('pw1').value !== $('pw2').value) { say('pwMsg', 'The two passwords do not match.', 'err'); return; }
+    $('pwBtn').disabled = true;
+    const { error } = await sb.auth.updateUser({ password: $('pw1').value });
+    $('pwBtn').disabled = false;
+    if (error) { say('pwMsg', error.message, 'err'); return; }
+    state.settingPw = false;
+    history.replaceState(null, '', location.pathname);
+    const { data } = await sb.auth.getSession();
+    route(data.session);
+  });
+
+  $('signOut').addEventListener('click', () => sb.auth.signOut());
+
+  async function route(session) {
+    if (!session) {
+      state.user = null; state.docs = []; state.people = [];
+      $('who').hidden = true; show('vLogin'); return;
+    }
+    if (state.settingPw) { show('vSetPw'); return; }
+    if (state.user && state.user.id === session.user.id && !$('vApp').hidden) return; // token refresh, nothing to redo
+    state.user = session.user;
+    const { data: profile } = await sb.from('profiles').select('*').eq('id', session.user.id).maybeSingle();
+    state.profile = profile; state.admin = !!profile && profile.role === 'admin';
+    $('whoName').textContent = nameOf(profile || { email: session.user.email });
+    $('who').hidden = false;
+    show('vApp');
+    await loadAll();
+    setupHours();
+    loadHours();
+  }
+
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY' || (needsPassword && session && !state.user && (event === 'SIGNED_IN' || event === 'INITIAL_SESSION'))) state.settingPw = true;
+    setTimeout(() => route(session), 0); // never call Supabase from inside this callback
+  });
+})();
+</script>
+</body>
+</html>
