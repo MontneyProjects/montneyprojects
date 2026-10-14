@@ -392,6 +392,24 @@
   .dsent b { font-size:15px; font-weight:800; } .dsent .dt { font-size:12px; color:var(--muted); font-weight:700; flex:none; }
   .dsent .sub { font-size:13px; color:var(--soft); margin-top:2px; }
   .dsent .del { background:none; border:0; color:var(--dim); font-size:12px; font-weight:700; padding:0; margin-top:8px; }
+  /* fuel */
+  .shot { margin-top:18px; border-radius:20px; border:1.5px dashed rgba(227,184,115,.45); background:rgba(227,184,115,.06); min-height:150px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; color:var(--gold); font-weight:800; font-size:16px; width:100%; overflow:hidden; position:relative; }
+  .shot svg { width:34px; height:34px; }
+  .shot small { color:var(--muted); font-weight:600; font-size:13px; }
+  .shot img { width:100%; max-height:320px; object-fit:contain; display:block; background:#000; }
+  .reading { margin-top:10px; font-size:14px; color:var(--gold2); font-weight:700; display:flex; align-items:center; gap:8px; }
+  .reading i { width:14px; height:14px; border-radius:50%; border:2px solid var(--gold); border-top-color:transparent; animation:spin .8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .fday { margin-top:18px; }
+  .fday h3 { margin:0; font-size:13px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; }
+  .fday h3 b { color:var(--gold); letter-spacing:0; font-size:15px; }
+  .frow { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .frow img { width:48px; height:48px; border-radius:10px; object-fit:cover; background:var(--surf2); flex:none; cursor:zoom-in; }
+  .frow .noimg { width:48px; height:48px; border-radius:10px; background:var(--surf2); flex:none; display:grid; place-items:center; color:var(--muted); }
+  .frow .t { flex:1; min-width:0; } .frow b { display:block; font-size:15px; font-weight:800; } .frow small { display:block; font-size:12px; color:var(--muted); font-weight:600; }
+  .frow .amt { font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .ftrucks { margin-top:10px; display:flex; flex-wrap:wrap; gap:6px; }
+  .ftrucks span { height:28px; padding:0 10px; border-radius:14px; background:var(--surf2); font-size:12px; font-weight:800; display:inline-flex; align-items:center; }
   /* tab bar */
   nav.tabs { position:fixed; left:0; right:0; bottom:0; z-index:20; display:grid; grid-template-columns:repeat(5, 1fr); padding:10px 6px calc(var(--bot) + 10px);
              background:rgba(18,11,7,.92); -webkit-backdrop-filter:saturate(1.4) blur(18px); backdrop-filter:saturate(1.4) blur(18px); border-top:1px solid var(--line); }
@@ -459,12 +477,16 @@
       <div class="r"><div class="k">FLHA board</div><div class="v"><span id="sRank">-</span> <small id="sFlha"></small></div></div>
     </div>
     <button class="btn cream" id="newTicket" type="button" data-go="ticket"><span data-i="plus"></span>New field ticket</button>
+    <button class="btn ghost" id="logFuel" type="button" data-go="fuel" style="position:relative; margin-top:10px"><span data-i="fuel"></span>Log fuel</button>
     <button class="crewcard" id="crewCard" type="button" data-go="crew" hidden>
       <span><span class="label">Crew today</span><span class="n" id="crewCounts"></span></span><span data-i="chev"></span>
     </button>
     <div id="ordersBox"></div>
     <button class="crewcard" id="dispCard" type="button" data-go="dispatch" hidden>
       <span><span class="label">Dispatch</span><span class="n" id="dispCounts">Send orders to the crew</span></span><span data-i="chev"></span>
+    </button>
+    <button class="crewcard" id="fuelCard" type="button" data-go="fuel" hidden>
+      <span><span class="label">Fuel</span><span class="n" id="fuelCounts">Fuel by truck</span></span><span data-i="chev"></span>
     </button>
     <button class="crewcard defects" id="defCard" type="button" data-go="defects" hidden>
       <span><span class="label">Truck defects</span><span class="n" id="defCounts"></span></span><span data-i="chev"></span>
@@ -611,6 +633,31 @@
     <div id="dList"><p class="empty">Loading...</p></div>
   </section>
 
+  <section class="view" id="v-fuel" hidden>
+    <div class="pagehead"><div><div class="eyebrow">Fuel</div><h1 class="h1">Log a fill-up</h1></div><button class="back" type="button" data-go="home" aria-label="Back" data-i="left"></button></div>
+    <div class="label" style="margin-top:22px">Truck</div>
+    <div class="pickrow" id="fTruck"></div>
+    <button class="shot" type="button" id="fShot"><span data-i="camera"></span>Snap the receipt<small>The app reads the litres and cost for you</small></button>
+    <input type="file" id="fFile" accept="image/*" capture="environment" hidden>
+    <div class="reading" id="fReading" hidden><i></i><span>Reading the receipt...</span></div>
+    <form id="fuelForm" autocomplete="off">
+      <div class="group" style="margin-top:16px">
+        <label><span>Date</span><input type="date" id="fDate" required></label>
+        <label><span>Station</span><input id="fStation" placeholder="Cardlock / station"></label>
+        <label><span>Litres</span><input id="fLitres" inputmode="decimal" placeholder="0.0"></label>
+        <label><span>$ / litre</span><input id="fPpl" inputmode="decimal" placeholder="0.000"></label>
+        <label><span>GST</span><input id="fGst" inputmode="decimal" placeholder="0.00"></label>
+        <label><span>Total $</span><input id="fTotal" inputmode="decimal" placeholder="0.00" required></label>
+        <label><span>Odometer</span><input id="fOdo" inputmode="numeric" placeholder="Optional"></label>
+      </div>
+      <p class="msg" style="margin-top:8px">Check the numbers match the receipt before you save.</p>
+      <button class="btn" id="fSave">Save fuel</button>
+      <p class="msg" id="fMsg" aria-live="polite"></p>
+    </form>
+    <h2 class="section" id="fHistHead">Recent fill-ups</h2>
+    <div id="fList"><p class="empty">Loading...</p></div>
+  </section>
+
   <section class="view" id="v-defects" hidden>
     <div class="pagehead"><div><div class="eyebrow">Admin · Pre-Trips</div><h1 class="h1">Truck defects</h1></div><button class="back" type="button" data-go="home" aria-label="Back" data-i="left"></button></div>
     <div class="segtabs" style="margin-top:20px"><button type="button" id="defOpen" aria-pressed="true">Open</button><button type="button" id="defAll" aria-pressed="false">All (90 days)</button></div>
@@ -709,7 +756,9 @@
     send:'<path d="M5 12h14M13 6l6 6-6 6"/>',
     mute:'<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>',
     play:'<path d="M7 4l13 8-13 8z"/>',
-    link:'<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>'
+    link:'<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
+    fuel:'<path d="M4 21V5a2 2 0 0 1 2-2h7a2 2 0 0 1 2 2v16"/><path d="M3 21h13M7 8h5"/><path d="M15 9h2a2 2 0 0 1 2 2v6a1.5 1.5 0 0 0 3 0V9l-3-3"/>',
+    camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>'
   };
   const svg = (n, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.9}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`;
   const paintIcons = root => root.querySelectorAll("[data-i]").forEach(el => { if (!el.querySelector("svg")) el.insertAdjacentHTML("afterbegin", svg(el.dataset.i, el.dataset.i === "check" ? 2.8 : 0)); });
@@ -889,7 +938,7 @@
       $("todaySub").textContent = S.admin ? "Here's how the crew is doing today." : "Your name isn't on the crew list yet. Ask the office to add you.";
     }
     renderTiles(mine); renderSafetyList(mine);
-    if (S.admin) { renderCrew(done); loadDefects(true); $("dispCard").hidden = false; }
+    if (S.admin) { renderCrew(done); loadDefects(true); $("dispCard").hidden = false; $("fuelCard").hidden = false; loadFuel(true); }
     loadOrders();
     loadWeek();
   }
@@ -1092,6 +1141,125 @@
     if (error) { toast("Couldn't save. Try again."); return; } toast("Got it 👍"); loadOrders();
   });
 
+
+  // ---------- fuel: snap the receipt, read it on the phone, confirm, save ----------
+  const F = { truck:"", file:null, path:"" };
+  const money = n => "$" + (Number(n) || 0).toLocaleString("en-CA", { minimumFractionDigits:2, maximumFractionDigits:2 });
+  function openFuel() {
+    if (!F.truck) { const last = (store("mp_tk_last") || {}).truck; if (last) F.truck = last; }
+    $("fTruck").innerHTML = TRUCKS.map(t => `<button type="button" class="chipbtn" data-ftruck="${esc(t)}" aria-pressed="${F.truck === t}">${t === "Skid steer" ? "Skid" : esc(t)}</button>`).join("");
+    if (!$("fDate").value) $("fDate").value = iso(new Date());
+    $("fHistHead").textContent = S.admin ? "Fuel by day" : "Your recent fill-ups";
+    loadFuel();
+  }
+  $("fTruck").addEventListener("click", e => { const b = e.target.closest("[data-ftruck]"); if (!b) return; F.truck = b.dataset.ftruck; $("fTruck").querySelectorAll("[data-ftruck]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ftruck === F.truck)); });
+  $("fShot").addEventListener("click", () => $("fFile").click());
+  let tessLoading = null;
+  const loadTess = () => tessLoading || (tessLoading = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"; sc.onload = () => res(window.Tesseract); sc.onerror = rej; document.head.appendChild(sc); }));
+  async function prepImage(file) {   // shrink + boost contrast so thermal receipts read better
+    const bmp = await createImageBitmap(file), max = 1800, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+    const x = c.getContext("2d"); x.drawImage(bmp, 0, 0, c.width, c.height);
+    const upload = await new Promise(r => c.toBlob(r, "image/jpeg", .85));
+    const img = x.getImageData(0, 0, c.width, c.height), d = img.data;
+    for (let i = 0; i < d.length; i += 4) { const g = .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2], v = g > 150 ? 255 : g < 90 ? 0 : (g - 90) * 4.25; d[i] = d[i + 1] = d[i + 2] = v; }
+    x.putImageData(img, 0, 0);
+    return { upload, ocr:c };
+  }
+  const num = s => { const n = parseFloat(String(s).replace(/[,\s]/g, "").replace(/[^\d.]/g, "")); return isNaN(n) ? null : n; };
+  function parseReceipt(text) {
+    const t = text.replace(/\r/g, ""), lines = t.split("\n").map(l => l.trim()).filter(Boolean), up = t.toUpperCase(), out = {};
+    let m = up.match(/(\d{1,4}[.,]\d{1,3})\s*(?:L\b|LTR|LITRE|LITER|LIT\b)/) || up.match(/(?:VOLUME|LITRES?|LITERS?|QTY|VOL)[^\d\n]{0,12}(\d{1,4}[.,]\d{1,3})/);
+    if (m) out.litres = num(m[1].replace(",", "."));
+    m = up.match(/(\d\.\d{3,4})\s*(?:\$?\s*\/\s*L|\/LTR|PER\s*L|\/LITRE)/) || up.match(/(?:PRICE|PPU|UNIT\s*PRICE|\$\/L)[^\d\n]{0,12}(\d\.\d{2,4})/) || up.match(/@\s*\$?(\d\.\d{2,4})/);
+    if (m) out.ppl = num(m[1]);
+    m = up.match(/GST[^\d\n]{0,20}(\d{1,4}[.,]\d{2})/); if (m) out.gst = num(m[1].replace(",", "."));
+    const totals = []; lines.forEach(l => { const L = l.toUpperCase(); if (/TOTAL|AMOUNT|SALE|FUEL\s*SALE|PURCHASE/.test(L) && !/SUB\s*TOTAL|GST|PST|TAX/.test(L)) { const mm = L.match(/(\d{1,5}[.,]\d{2})(?!\d)/g); if (mm) totals.push(num(mm[mm.length - 1].replace(",", "."))); } });
+    if (totals.length) out.total = Math.max(...totals);
+    if (!out.total) { const all = (up.match(/\$\s*(\d{1,5}\.\d{2})/g) || []).map(num).filter(Boolean); if (all.length) out.total = Math.max(...all); }
+    if (!out.total && out.litres && out.ppl) out.total = Math.round(out.litres * out.ppl * 100) / 100;
+    if (!out.litres && out.total && out.ppl) out.litres = Math.round(out.total / out.ppl * 1000) / 1000;
+    if (!out.ppl && out.total && out.litres) out.ppl = Math.round(out.total / out.litres * 1000) / 1000;
+    const mons = { JAN:1, FEB:2, MAR:3, APR:4, MAY:5, JUN:6, JUL:7, AUG:8, SEP:9, OCT:10, NOV:11, DEC:12 };
+    const yr = y => (y < 100 ? 2000 + y : y), ok = d => !isNaN(d) && Math.abs(d - new Date()) < 1000 * 86400 * 45;
+    let dt = null;
+    if ((m = up.match(/(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})/))) dt = new Date(+m[1], +m[2] - 1, +m[3]);
+    else if ((m = up.match(/\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\.?\s+(\d{1,2}),?\s+(\d{2,4})/))) dt = new Date(yr(+m[3]), mons[m[1]] - 1, +m[2]);
+    else if ((m = up.match(/\b(\d{1,2})[-\s](JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-\s](\d{2,4})/))) dt = new Date(yr(+m[3]), mons[m[2]] - 1, +m[1]);
+    else if ((m = up.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})\b/))) { const a = new Date(yr(+m[3]), +m[1] - 1, +m[2]), b = new Date(yr(+m[3]), +m[2] - 1, +m[1]); dt = ok(a) ? a : b; }
+    if (dt && ok(dt)) out.date = iso(dt);
+    const head = lines.slice(0, 4).find(l => /[A-Za-z]{3,}/.test(l) && !/\d{3}-\d{3,4}/.test(l)); if (head) out.station = head.replace(/[^\w &'.-]/g, "").trim().slice(0, 60);
+    return out;
+  }
+  $("fFile").addEventListener("change", async () => {
+    const file = $("fFile").files[0]; $("fFile").value = ""; if (!file) return;
+    let prep; try { prep = await prepImage(file); } catch (e) { prep = { upload:file, ocr:null }; }
+    F.file = prep.upload;
+    $("fShot").innerHTML = `<img src="${URL.createObjectURL(prep.upload)}" alt="Receipt">`;
+    $("fReading").hidden = false; msg("fMsg", "");
+    try {
+      const T = await loadTess();
+      const r = await T.recognize(prep.ocr || prep.upload, "eng");
+      const p = parseReceipt(r.data.text || "");
+      if (p.date) $("fDate").value = p.date;
+      if (p.station && !$("fStation").value) $("fStation").value = p.station;
+      if (p.litres) $("fLitres").value = p.litres;
+      if (p.ppl) $("fPpl").value = p.ppl;
+      if (p.gst) $("fGst").value = p.gst.toFixed(2);
+      if (p.total) $("fTotal").value = p.total.toFixed(2);
+      const got = ["litres", "total"].filter(k => p[k]).length;
+      msg("fMsg", got === 2 ? "Got it. Check the numbers, then save." : "Couldn't read all of it. Fill in what's missing from the receipt.", got === 2 ? "ok" : "bad");
+    } catch (e) { msg("fMsg", "Couldn't read the receipt. Type the numbers in.", "bad"); }
+    $("fReading").hidden = true;
+  });
+  $("fuelForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!F.truck) { msg("fMsg", "Tap the truck at the top.", "bad"); return; }
+    const total = num($("fTotal").value); if (!(total > 0)) { msg("fMsg", "Enter the total from the receipt.", "bad"); return; }
+    $("fSave").disabled = true; msg("fMsg", "Saving...");
+    let path = null;
+    if (F.file) {
+      path = `${S.user.id}/${$("fDate").value}-${crypto.randomUUID().slice(0, 8)}.jpg`;
+      const up = await sb.storage.from("fuel-receipts").upload(path, F.file, { contentType:"image/jpeg" });
+      if (up.error) path = null;
+    }
+    const row = { truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim() || null,
+      litres:num($("fLitres").value), price_per_l:num($("fPpl").value), gst:num($("fGst").value), total, odometer:$("fOdo").value.trim() || null, receipt_path:path };
+    const { error } = await sb.from("fuel_logs").insert(row);
+    $("fSave").disabled = false;
+    if (error) { msg("fMsg", "Didn't save. Check your signal and try again.", "bad"); return; }
+    toast("Fuel saved ⛽"); msg("fMsg", "");
+    F.file = null; ["fStation", "fLitres", "fPpl", "fGst", "fTotal", "fOdo"].forEach(id => $(id).value = "");
+    $("fShot").innerHTML = `${svg("camera")}Snap the receipt<small>The app reads the litres and cost for you</small>`;
+    loadFuel();
+  });
+  const fuelUrls = {};
+  async function loadFuel(countOnly) {
+    const since = new Date(); since.setDate(since.getDate() - (S.admin ? 31 : 14));
+    const { data } = await sb.from("fuel_logs").select("*").gte("fill_date", iso(since)).order("fill_date", { ascending:false }).order("created_at", { ascending:false }).limit(300);
+    const rows = data || [];
+    if (S.admin) {
+      const wk = new Date(); wk.setDate(wk.getDate() - 6);
+      const week = rows.filter(r => r.fill_date >= iso(wk)).reduce((a, r) => a + Number(r.total || 0), 0);
+      $("fuelCounts").innerHTML = rows.length ? `<span style="color:var(--gold)">${money(week)} last 7 days</span>` : "No fill-ups logged yet";
+    }
+    if (countOnly) return;
+    const need = rows.filter(r => r.receipt_path && !fuelUrls[r.receipt_path]).map(r => r.receipt_path);
+    if (need.length) { const { data:su } = await sb.storage.from("fuel-receipts").createSignedUrls(need, 3600 * 6); (su || []).forEach(x => { if (x.signedUrl) fuelUrls[x.path] = x.signedUrl; }); }
+    const days = {}; rows.forEach(r => (days[r.fill_date] = days[r.fill_date] || []).push(r));
+    const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
+    $("fList").innerHTML = Object.keys(days).length ? Object.keys(days).map(k => {
+      const list = days[k], tot = list.reduce((a, r) => a + Number(r.total || 0), 0), byTruck = {};
+      list.forEach(r => byTruck[r.truck] = (byTruck[r.truck] || 0) + Number(r.total || 0));
+      return `<div class="fday"><h3>${esc(new Date(k + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" }))}<b>${money(tot)}</b></h3>
+        ${S.admin && Object.keys(byTruck).length > 1 ? `<div class="ftrucks">${Object.keys(byTruck).sort().map(t => `<span>${esc(t)} · ${money(byTruck[t])}</span>`).join("")}</div>` : ""}
+        ${list.map(r => `<div class="frow">${r.receipt_path && fuelUrls[r.receipt_path] ? `<img src="${esc(fuelUrls[r.receipt_path])}" alt="Receipt" data-big="${esc(fuelUrls[r.receipt_path])}">` : `<span class="noimg">${svg("fuel")}</span>`}
+          <span class="t"><b>Truck ${esc(r.truck)}${r.station ? " · " + esc(r.station) : ""}</b><small>${[r.litres ? Number(r.litres).toFixed(1) + " L" : "", r.price_per_l ? "$" + Number(r.price_per_l).toFixed(3) + "/L" : "", S.admin ? who(r.crew_name) : ""].filter(Boolean).join(" · ")}</small></span>
+          <span class="amt">${money(r.total)}</span></div>`).join("")}</div>`;
+    }).join("") : '<p class="empty">No fill-ups yet.</p>';
+  }
+  $("fList").addEventListener("click", e => { const big = e.target.closest("[data-big]"); if (!big) return; const dv = document.createElement("div"); dv.className = "viewer"; dv.innerHTML = `<img src="${esc(big.dataset.big)}" alt=""><button type="button" aria-label="Close">×</button>`; dv.addEventListener("click", () => dv.remove()); document.body.appendChild(dv); });
+
   // ---------- hours ----------
   async function loadHours() {
     const me = meName(), now = new Date();
@@ -1170,7 +1338,7 @@
   });
 
   // ---------- navigation ----------
-  const TAB_OF = { home:"home", crew:"home", defects:"home", dispatch:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
+  const TAB_OF = { home:"home", crew:"home", defects:"home", dispatch:"home", fuel:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
   function go(v) {
     S.view = v;
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
@@ -1182,6 +1350,7 @@
     if (v === "chat" && S.user) { loadThreads(); pushNotice(); }
     if (v === "defects" && S.user) loadDefects();
     if (v === "dispatch" && S.user) openDispatch();
+    if (v === "fuel" && S.user) openFuel();
     if (v !== "thread") C.open = null;
     if (v === "ticket" && S.user && !$("tkDone").hidden) { /* keep the done screen until they leave */ }
     $("v-" + v).scrollTop = 0;
