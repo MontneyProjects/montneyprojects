@@ -576,12 +576,24 @@
     ctx.clearRect(0, 0, rect.width, rect.height);
   }
 
+
+  // What was flagged, so the office gets a ping with the defects (the PDF still goes out as before).
+  function preTripDetails() {
+    var v = function (id) { var n = document.getElementById(id); return n ? n.value.trim().slice(0, 60) : ""; };
+    var defects = [];
+    document.querySelectorAll(".pf-btn.fail.active").forEach(function (b) {
+      var row = b.closest("tr"), next = row && row.nextElementSibling;
+      var note = next && next.classList.contains("defect-row") ? (next.querySelector("input") || {}).value || "" : "";
+      defects.push({ item: (row.cells[0].textContent || "").trim().slice(0, 60), note: note.trim().slice(0, 140) });
+    });
+    return { unit: v("unitNum"), plate: v("plate"), odometer: v("odometer"), defects: defects.slice(0, 25), notes: ((document.getElementById("notes") || {}).value || "").trim().slice(0, 300) };
+  }
   function submitForm() {
     const name = document.getElementById("driverName").value.trim();
     const date = document.getElementById("date").value;
     if (!name) { alert("Please pick your name before saving."); return; }
     if (!date)  { alert("Please enter the date before saving."); return; }
-    sendPdf({ title: "Montney Projects Corp \u2013 Pre-Trip Inspection", who: document.getElementById("driverName").value.trim(), date: date, extra: { Unit: document.getElementById("unitNum").value.trim(), "Defects noted": String(document.querySelectorAll(".pf-btn.fail.active").length) }, track: trackInfo("Pre-Trip", "driverName", date) });
+    sendPdf({ title: "Montney Projects Corp \u2013 Pre-Trip Inspection", who: document.getElementById("driverName").value.trim(), date: date, extra: { Unit: document.getElementById("unitNum").value.trim(), "Defects noted": String(document.querySelectorAll(".pf-btn.fail.active").length) }, track: Object.assign(trackInfo("Pre-Trip", "driverName", date), { details: preTripDetails() }) });
   }
 </script>
 

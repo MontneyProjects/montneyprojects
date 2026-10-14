@@ -352,6 +352,21 @@
   .viewer button { position:absolute; top:calc(var(--top) + 12px); right:12px; width:44px; height:44px; border-radius:50%; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:20px; }
   .setrow { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:56px; border-top:1px solid var(--line); font-size:15px; font-weight:700; }
   .setrow small { display:block; font-size:12px; color:var(--muted); font-weight:600; }
+  /* defects (admin) */
+  .defcard { margin-top:10px; border-radius:18px; background:var(--surf); border:1px solid rgba(224,122,95,.30); padding:16px; }
+  .defcard.fixed { border-color:rgba(243,235,223,.10); opacity:.7; }
+  .defcard .top { display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+  .defcard .unit { font-size:17px; font-weight:800; }
+  .defcard .meta { font-size:13px; color:var(--muted); font-weight:600; margin-top:2px; }
+  .defcard ul { margin:12px 0 0; padding:0; list-style:none; display:flex; flex-direction:column; gap:8px; }
+  .defcard li { display:flex; gap:10px; font-size:15px; line-height:1.4; }
+  .defcard li::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--bad); flex:none; margin-top:7px; }
+  .defcard.fixed li::before { background:var(--ok); }
+  .defcard li b { font-weight:800; }
+  .defcard .notes { margin-top:10px; font-size:14px; color:var(--soft); }
+  .fixbtn { height:36px; padding:0 14px; border-radius:18px; border:1px solid var(--line2); background:transparent; color:var(--text); font-weight:800; font-size:13px; flex:none; }
+  .fixbtn.done { border-color:rgba(111,191,138,.4); color:var(--ok2); }
+  .crewcard.defects { border-color:rgba(224,122,95,.30); }
   /* tab bar */
   nav.tabs { position:fixed; left:0; right:0; bottom:0; z-index:20; display:grid; grid-template-columns:repeat(5, 1fr); padding:10px 6px calc(var(--bot) + 10px);
              background:rgba(18,11,7,.92); -webkit-backdrop-filter:saturate(1.4) blur(18px); backdrop-filter:saturate(1.4) blur(18px); border-top:1px solid var(--line); }
@@ -421,6 +436,9 @@
     <button class="btn cream" id="newTicket" type="button" data-go="ticket"><span data-i="plus"></span>New field ticket</button>
     <button class="crewcard" id="crewCard" type="button" data-go="crew" hidden>
       <span><span class="label">Crew today</span><span class="n" id="crewCounts"></span></span><span data-i="chev"></span>
+    </button>
+    <button class="crewcard defects" id="defCard" type="button" data-go="defects" hidden>
+      <span><span class="label">Truck defects</span><span class="n" id="defCounts"></span></span><span data-i="chev"></span>
     </button>
     <div class="boardhead"><h2>FLHA leaderboard</h2><span id="boardRange"></span></div>
     <p class="boardnote">Days with an FLHA out of days worked. Top spot gets the gift card.</p>
@@ -539,6 +557,12 @@
       <label style="flex:1; display:flex"><span style="position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)">Message</span><textarea id="msgIn" rows="1" placeholder="Message"></textarea></label>
       <button class="send" type="submit" id="sendBtn" aria-label="Send" data-i="send" disabled></button>
     </form>
+  </section>
+
+  <section class="view" id="v-defects" hidden>
+    <div class="pagehead"><div><div class="eyebrow">Admin · Pre-Trips</div><h1 class="h1">Truck defects</h1></div><button class="back" type="button" data-go="home" aria-label="Back" data-i="left"></button></div>
+    <div class="segtabs" style="margin-top:20px"><button type="button" id="defOpen" aria-pressed="true">Open</button><button type="button" id="defAll" aria-pressed="false">All (90 days)</button></div>
+    <div id="defList"><p class="empty">Loading...</p></div>
   </section>
 
   <nav class="tabs" role="tablist">
@@ -812,7 +836,7 @@
       $("todaySub").textContent = S.admin ? "Here's how the crew is doing today." : "Your name isn't on the crew list yet. Ask the office to add you.";
     }
     renderTiles(mine); renderSafetyList(mine);
-    if (S.admin) renderCrew(done);
+    if (S.admin) { renderCrew(done); loadDefects(true); }
     loadWeek();
   }
   const sentTime = f => { const t = S.sentAt && S.sentAt(f.form); return t ? new Date(t).toLocaleTimeString("en-CA", { hour:"numeric", minute:"2-digit" }).replace(/\s?([ap])\.?m\.?/i, (m, a) => " " + a.toUpperCase() + "M") : ""; };
@@ -907,6 +931,38 @@
     $("goodList").innerHTML = good.length ? good.map(x => `<div class="crow"><span class="av">${esc(initials(x.c.display_name))}</span><span class="t"><b style="font-weight:700">${esc(x.c.display_name)}</b><span class="pills">${pills(x)}</span></span></div>`).join("") : '<p class="empty">Nobody yet today.</p>';
   }
 
+  // ---------- truck defects from Pre-Trips (admin) ----------
+  let defShowAll = false;
+  async function loadDefects(countOnly) {
+    if (!S.admin) return;
+    const since = new Date(); since.setDate(since.getDate() - 90);
+    const { data } = await sb.from("safety_forms").select("id,work_date,created_at,crew_name,site,details,defect_fixed_at").eq("form", "Pre-Trip").not("details", "is", null).gte("work_date", iso(since)).order("created_at", { ascending:false });
+    const rows = (data || []).filter(r => r.details && Array.isArray(r.details.defects) && r.details.defects.length);
+    const open = rows.filter(r => !r.defect_fixed_at);
+    $("defCard").hidden = false;
+    $("defCounts").innerHTML = open.length ? `<span style="color:var(--bad2)">${open.length} open</span><span style="color:var(--muted)">${rows.length} in 90 days</span>` : `<span style="color:var(--ok2)">No open defects</span>`;
+    if (countOnly) return;
+    const list = defShowAll ? rows : open;
+    const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "Unknown";
+    $("defList").innerHTML = list.length ? list.map(r => {
+      const d = r.details, when = new Date(r.created_at);
+      const date = new Date(r.work_date + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" }) + " · " + when.toLocaleTimeString("en-CA", { hour:"numeric", minute:"2-digit" });
+      const fixed = r.defect_fixed_at ? new Date(r.defect_fixed_at).toLocaleDateString("en-CA", { month:"short", day:"numeric" }) : "";
+      return `<div class="defcard${fixed ? " fixed" : ""}"><div class="top"><div><div class="unit">${d.unit ? "Unit " + esc(d.unit) : "Truck"}${d.plate ? ` <span style="font-weight:600; color:var(--muted); font-size:14px">· ${esc(d.plate)}</span>` : ""}</div><div class="meta">${esc(date)} · ${esc(who(r.crew_name))}${d.odometer ? " · " + esc(d.odometer) + " km" : ""}</div></div>
+        <button class="fixbtn${fixed ? " done" : ""}" type="button" data-fix="${r.id}" data-fixed="${fixed ? 1 : 0}">${fixed ? "Fixed " + esc(fixed) : "Mark fixed"}</button></div>
+        <ul>${d.defects.map(x => `<li><span><b>${esc(x.item || "Defect")}</b>${x.note ? " – " + esc(x.note) : ""}</span></li>`).join("")}</ul>${d.notes ? `<div class="notes">Notes: ${esc(d.notes)}</div>` : ""}</div>`;
+    }).join("") : `<p class="empty">${defShowAll ? "No defects reported in the last 90 days." : "No open defects. All trucks good to go."}</p>`;
+  }
+  $("defOpen").addEventListener("click", () => { defShowAll = false; $("defOpen").setAttribute("aria-pressed", true); $("defAll").setAttribute("aria-pressed", false); loadDefects(); });
+  $("defAll").addEventListener("click", () => { defShowAll = true; $("defAll").setAttribute("aria-pressed", true); $("defOpen").setAttribute("aria-pressed", false); loadDefects(); });
+  $("defList").addEventListener("click", async e => {
+    const b = e.target.closest("[data-fix]"); if (!b) return;
+    const undo = b.dataset.fixed === "1";
+    const { error } = await sb.from("safety_forms").update({ defect_fixed_at:undo ? null : new Date().toISOString() }).eq("id", b.dataset.fix);
+    if (error) { toast("Couldn't update that"); return; }
+    toast(undo ? "Marked open again" : "Marked fixed"); loadDefects();
+  });
+
   // ---------- hours ----------
   async function loadHours() {
     const me = meName(), now = new Date();
@@ -985,7 +1041,7 @@
   });
 
   // ---------- navigation ----------
-  const TAB_OF = { home:"home", crew:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
+  const TAB_OF = { home:"home", crew:"home", defects:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
   function go(v) {
     S.view = v;
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
@@ -995,6 +1051,7 @@
     if ((v === "home" || v === "safety" || v === "crew") && S.user) { loadToday(); if (v === "home") loadStats(); }
     if (v === "hours" && S.user) { loadHours(); loadStats(); }
     if (v === "chat" && S.user) { loadThreads(); pushNotice(); }
+    if (v === "defects" && S.user) loadDefects();
     if (v !== "thread") C.open = null;
     if (v === "ticket" && S.user && !$("tkDone").hidden) { /* keep the done screen until they leave */ }
     $("v-" + v).scrollTop = 0;
