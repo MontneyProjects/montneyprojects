@@ -116,6 +116,10 @@
   .defect-row td { padding: 6px 8px; }
   .defect-row input { background: white; border-color: var(--fail); font-size: 13px; padding: 6px 8px; }
   .defect-row.show { display: table-row; }
+  .dphoto-btn { margin-top: 6px; font-size: 13px; font-weight: 700; padding: 7px 12px; border: 1px dashed var(--fail); border-radius: 8px; background: #fff; color: var(--fail); cursor: pointer; }
+  .dphotos { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .dphotos span { position: relative; width: 64px; height: 64px; border-radius: 6px; overflow: hidden; background: #eee; font-size: 10px; display: grid; place-items: center; color: #777; }
+  .dphotos img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
   /* ODOMETER / FUEL */
   .meter-row { display: flex; gap: 10px; align-items: center; }
@@ -578,6 +582,48 @@
 
 
   // What was flagged, so the office gets a ping with the defects (the PDF still goes out as before).
+  // Photos of defects: optional, one or more per defect. They upload in the background and the office sees them.
+  var dpUploads = [], dpPhotos = [];
+  function dpShrink(file) {
+    return new Promise(function (res) {
+      var img = new Image(), url = URL.createObjectURL(file);
+      img.onload = function () {
+        var max = 1400, sc = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement("canvas");
+        c.width = Math.round(img.width * sc); c.height = Math.round(img.height * sc);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
+        c.toBlob(function (b) { res(b || file); }, "image/jpeg", 0.82);
+      };
+      img.onerror = function () { res(file); };
+      img.src = url;
+    });
+  }
+  function dpAdd(input, item) {
+    var box = input.parentNode.querySelector(".dphotos");
+    Array.prototype.forEach.call(input.files || [], function (file) {
+      var tile = document.createElement("span"); tile.textContent = "Uploading"; box.appendChild(tile);
+      var d = document.getElementById("date").value || new Date().toISOString().slice(0, 10);
+      var path = "pretrip/" + d + "/" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + ".jpg";
+      var job = dpShrink(file).then(function (blob) {
+        tile.innerHTML = ""; var im = document.createElement("img"); im.src = URL.createObjectURL(blob); tile.appendChild(im);
+        return fetch(TRACK_URL.replace("/rest/v1/", "/storage/v1/object/defect-photos/") + path, { method: "POST", headers: { apikey: TRACK_KEY, "Content-Type": "image/jpeg" }, body: blob });
+      }).then(function (r) {
+        if (!r.ok) throw new Error("upload");
+        dpPhotos.push({ path: path, item: item });
+      }).catch(function () { tile.style.outline = "2px solid #c0392b"; tile.title = "Didn't upload. Check signal and add it again."; });
+      dpUploads.push(job);
+    });
+    input.value = "";
+  }
+  document.querySelectorAll(".defect-row td").forEach(function (td) {
+    var row = td.parentNode.previousElementSibling, item = row && row.cells[0] ? row.cells[0].textContent.trim() : "Defect";
+    var btn = document.createElement("button"); btn.type = "button"; btn.className = "dphoto-btn"; btn.textContent = "📷 Add photo";
+    var inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.multiple = true; inp.hidden = true;
+    var box = document.createElement("div"); box.className = "dphotos";
+    btn.onclick = function () { inp.click(); };
+    inp.onchange = function () { dpAdd(inp, item); };
+    td.appendChild(btn); td.appendChild(inp); td.appendChild(box);
+  });
+
   function preTripDetails() {
     var v = function (id) { var n = document.getElementById(id); return n ? n.value.trim().slice(0, 60) : ""; };
     var defects = [];
@@ -586,9 +632,10 @@
       var note = next && next.classList.contains("defect-row") ? (next.querySelector("input") || {}).value || "" : "";
       defects.push({ item: (row.cells[0].textContent || "").trim().slice(0, 60), note: note.trim().slice(0, 140) });
     });
-    return { unit: v("unitNum"), plate: v("plate"), odometer: v("odometer"), defects: defects.slice(0, 25), notes: ((document.getElementById("notes") || {}).value || "").trim().slice(0, 300) };
+    return { unit: v("unitNum"), plate: v("plate"), odometer: v("odometer"), defects: defects.slice(0, 25), notes: ((document.getElementById("notes") || {}).value || "").trim().slice(0, 300), photos: dpPhotos.slice(0, 20) };
   }
-  function submitForm() {
+  async function submitForm() {
+    if (dpUploads.length) { var sb2 = document.getElementById("sendBtn"); sb2.textContent = "UPLOADING PHOTOS..."; await Promise.allSettled(dpUploads); sb2.textContent = "SUBMIT INSPECTION"; }
     const name = document.getElementById("driverName").value.trim();
     const date = document.getElementById("date").value;
     if (!name) { alert("Please pick your name before saving."); return; }
