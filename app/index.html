@@ -42,6 +42,8 @@
 
   /* login */
   #login { min-height:100%; display:flex; flex-direction:column; justify-content:flex-end; background:linear-gradient(180deg, rgba(20,12,7,0) 0%, rgba(20,12,7,0) 34%, rgba(20,12,7,.6) 52%, var(--bg) 64%), url(truck.jpg) 24% 0/auto 66vh no-repeat, var(--bg); padding:calc(var(--top) + 24px) 22px calc(var(--bot) + 28px); }
+  #lock { min-height:100%; display:flex; flex-direction:column; justify-content:flex-end; background:linear-gradient(180deg, rgba(20,12,7,0) 0%, rgba(20,12,7,0) 34%, rgba(20,12,7,.6) 52%, var(--bg) 64%), url(truck.jpg) 24% 0/auto 66vh no-repeat, var(--bg); padding:calc(var(--top) + 24px) 22px calc(var(--bot) + 28px); }
+  #lock .brand img { width:180px; display:block; } #lock h1 { font-size:30px; line-height:1.1; margin:18px 0 6px; } #lock p.sub { color:var(--muted); margin:0 0 22px; } #lock .btn + .btn { margin-top:10px; }
   #login .brand img { width:180px; display:block; }
   #login h1 { font-size:30px; line-height:1.1; margin:18px 0 6px; letter-spacing:-.01em; }
   #login p.sub { color:var(--muted); margin:0 0 22px; }
@@ -142,11 +144,20 @@
   <form id="loginForm" autocomplete="on">
     <label class="field"><span>Email</span><input id="liEmail" type="email" name="username" autocomplete="username" inputmode="email" required></label>
     <label class="field"><span>Password</span><input id="liPass" type="password" name="password" autocomplete="current-password" required></label>
-    <button class="btn" id="liFace" type="button" hidden>Sign in with Face ID</button>
     <button class="btn" id="liBtn">Sign in</button>
     <p class="msg" id="liMsg" aria-live="polite"></p>
   </form>
   <p style="margin:6px 0 0; font-size:14px"><button class="link" id="forgot" type="button">Forgot your password?</button></p>
+</section>
+
+<!-- Locked after 15 min: Face ID / fingerprint to get back in -->
+<section id="lock" hidden>
+  <div class="brand"><img src="logo-cream.png" alt="Montney Projects Corp"></div>
+  <h1 id="lkTitle">Welcome back</h1>
+  <p class="sub" id="lkSub">You were signed out after 15 minutes. Use Face ID to get back in.</p>
+  <button class="btn" id="lkGo" type="button">Use Face ID</button>
+  <button class="btn ghost" id="lkPw" type="button">Use password instead</button>
+  <p class="msg" id="lkMsg" aria-live="polite"></p>
 </section>
 
 <!-- App -->
@@ -239,6 +250,13 @@
   <a class="btn ghost" href="get.html">Install help</a>
   <button class="btn ghost" id="signOut" type="button">Sign out</button>
 </div>
+<div class="sheet" id="bioSheet" role="dialog" aria-modal="true" aria-labelledby="bioTitle">
+  <div class="grab"></div>
+  <h3 id="bioTitle">Use Face ID to sign in?</h3>
+  <p id="bioText">MontneyPro signs you out after 15 minutes. With Face ID on, you just look at your phone to get back in.</p>
+  <button class="btn" id="bioYes" type="button">Use Face ID</button>
+  <button class="btn ghost" id="bioNo" type="button">Not now</button>
+</div>
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
@@ -292,20 +310,71 @@
   const crewNameOf = p => p ? ((p.ticket_name || "").trim() || (p.full_name || "").trim().split(/\s+/)[0] || "").toLowerCase() : "";
 
   // ---------- auth ----------
-  // Signed out after 15 minutes of no use. Face ID signs back in through the phone's saved password.
+  // After 15 minutes of no use the app locks. Face ID / fingerprint unlocks it; without it, they sign in again.
   const IDLE_MS = 15 * 60 * 1000;
+  const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const BIO = IOS ? "Face ID" : "fingerprint";
   const lastActive = () => Number(store("mp_last_active") || 0);
   const touch = () => store("mp_last_active", Date.now());
   const expired = () => lastActive() > 0 && Date.now() - lastActive() > IDLE_MS;
-  ["touchstart", "click", "keydown", "scroll"].forEach(ev => addEventListener(ev, () => { if (S.user) touch(); }, { passive:true, capture:true }));
-  function idleCheck() { if (S.user && expired()) { closeSheet(); sb.auth.signOut(); } }
+  const bioKey = uid => "mp_bio_" + uid;
+  const bioFor = uid => store(bioKey(uid));
+  const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const unb64 = str => Uint8Array.from(atob(str.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+  const rand = () => crypto.getRandomValues(new Uint8Array(32));
+
+  ["touchstart", "click", "keydown", "scroll"].forEach(ev => addEventListener(ev, () => { if (S.user && !S.locked) touch(); }, { passive:true, capture:true }));
+  function timeUp() { if (bioFor(S.user.id)) lock(); else { closeSheet(); closeBio(); sb.auth.signOut(); } }
+  function idleCheck() { if (S.user && !S.locked && expired()) timeUp(); }
   document.addEventListener("visibilitychange", () => { if (!document.hidden) idleCheck(); });
   addEventListener("pageshow", idleCheck);
   setInterval(idleCheck, 30000);
 
+  function lock() {
+    S.locked = true; closeSheet(); closeBio();
+    $("app").hidden = true; $("login").hidden = true; $("lock").hidden = false; msg("lkMsg", "");
+    const name = (S.profile && S.profile.full_name) || "";
+    $("lkTitle").textContent = "Welcome back" + (name ? ", " + name.split(/\s+/)[0] : "");
+  }
+  $("lkGo").textContent = "Use " + BIO;
+  $("lkSub").textContent = "You were signed out after 15 minutes. Use " + BIO + " to get back in.";
+  $("lkGo").addEventListener("click", async () => {
+    const id = bioFor(S.user.id);
+    try {
+      await navigator.credentials.get({ publicKey:{ challenge:rand(), allowCredentials:[{ type:"public-key", id:unb64(id) }], userVerification:"required", timeout:60000 } });
+      S.locked = false; touch(); $("lock").hidden = true; $("app").hidden = false; paint();
+    } catch (e) { msg("lkMsg", BIO + " didn't work. Try again or use your password.", "bad"); }
+  });
+  $("lkPw").addEventListener("click", () => { S.locked = false; $("lock").hidden = true; sb.auth.signOut(); });
+
+  // first sign-in on a phone: ask if they want Face ID / fingerprint
+  const closeBio = () => { $("bioSheet").classList.remove("on"); if (!$("sheet").classList.contains("on")) $("scrim").classList.remove("on"); };
+  async function maybeAskBio() {
+    const uid = S.user.id;
+    if (bioFor(uid) || store("mp_bio_asked_" + uid) || !window.PublicKeyCredential) return;
+    try { if (!(await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())) return; } catch (e) { return; }
+    $("bioTitle").textContent = "Use " + BIO + " to sign in?";
+    $("bioText").textContent = "MontneyPro signs you out after 15 minutes. With " + BIO + " on, you " + (IOS ? "just look at your phone" : "just touch the sensor") + " to get back in.";
+    $("bioYes").textContent = "Use " + BIO;
+    $("scrim").classList.add("on"); $("bioSheet").classList.add("on");
+  }
+  $("bioNo").addEventListener("click", () => { store("mp_bio_asked_" + S.user.id, 1); closeBio(); });
+  $("bioYes").addEventListener("click", async () => {
+    const u = S.user, name = (S.profile && S.profile.full_name) || u.email;
+    try {
+      const cred = await navigator.credentials.create({ publicKey:{
+        challenge:rand(), rp:{ name:"MontneyPro" },
+        user:{ id:new TextEncoder().encode(u.id), name:u.email || name, displayName:name },
+        pubKeyCredParams:[{ type:"public-key", alg:-7 }, { type:"public-key", alg:-257 }],
+        authenticatorSelection:{ authenticatorAttachment:"platform", userVerification:"required", residentKey:"preferred" },
+        timeout:60000, attestation:"none" } });
+      store(bioKey(u.id), b64(cred.rawId)); store("mp_bio_asked_" + u.id, 1);
+      closeBio(); toast(BIO + " is on");
+    } catch (e) { closeBio(); toast(BIO + " wasn't set up. It'll ask again next sign-in."); }
+  });
+
   const savedEmail = store("mp_email");
-  if (savedEmail) { $("liEmail").value = savedEmail; $("liFace").hidden = false; $("liBtn").classList.add("ghost"); $("liSub").textContent = "Tap Face ID, then tap your saved password above the keyboard."; }
-  $("liFace").addEventListener("click", () => { $("liPass").value = ""; $("liPass").focus(); });
+  if (savedEmail) $("liEmail").value = savedEmail;
 
   let signingIn = false;
   async function signIn() {
@@ -319,7 +388,7 @@
     msg("liMsg", error ? "Wrong email or password." : "", error ? "bad" : "");
   }
   $("loginForm").addEventListener("submit", e => { e.preventDefault(); signIn(); });
-  // when the phone fills the saved password (Face ID), sign in right away
+  // when the phone fills a saved password, sign in right away
   let prevLen = 0;
   $("liPass").addEventListener("input", () => {
     const len = $("liPass").value.length;
@@ -337,10 +406,11 @@
   sb.auth.onAuthStateChange((evt, session) => setTimeout(() => route(session), 0));
 
   async function route(session) {
-    if (!session) { S.user = null; $("liPass").value = ""; $("app").hidden = true; $("login").hidden = false; hideSplash(); return; }
-    if (expired()) { sb.auth.signOut(); return; }
-    touch();
-    if (S.user && S.user.id === session.user.id) return;
+    if (!session) { S.user = null; S.locked = false; $("liPass").value = ""; prevLen = 0; $("app").hidden = true; $("lock").hidden = true; $("login").hidden = false; hideSplash(); return; }
+    let needLock = false;
+    if (expired()) { if (!bioFor(session.user.id)) { sb.auth.signOut(); return; } needLock = true; }
+    else if (!S.locked) touch();
+    if (S.user && S.user.id === session.user.id) { if (needLock && !S.locked) lock(); return; }
     S.user = session.user;
     const [p, r] = await Promise.all([
       sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle(),
@@ -352,6 +422,7 @@
     if (S.crew) store("montney_me", S.crew.display_name);   // safety forms pick this name automatically
     $("login").hidden = true; $("app").hidden = false;
     paint(); hideSplash();
+    if (needLock) lock(); else setTimeout(maybeAskBio, 700);
   }
 
   // ---------- home ----------
