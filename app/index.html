@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1c110a">
+<meta name="theme-color" content="#120b07">
 <meta name="robots" content="noindex">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -14,232 +14,429 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
 <style>
   :root {
-    --bg:#140c07; --bg2:#1c110a; --panel:#241710; --panel2:#2e1e14; --line:#3d2a1c;
-    --text:#f6eedc; --muted:#b9a58f; --amber:#f3c279; --rust:#d98a3d; --ok:#6fbf8b; --bad:#e2725b;
-    --sans:Archivo, -apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --bg:#120b07; --bg2:#1a110b; --text:#f3ebdf; --soft:#bfb3a4; --muted:#a89b8b; --dim:#7e7366; --faint:#5a5047;
+    --gold:#e3b873; --gold2:#f3d3a0; --ok:#6fbf8a; --ok2:#8fd3a6; --bad:#e07a5f; --bad2:#f0a08a;
+    --surf:rgba(243,235,223,.05); --surf2:rgba(243,235,223,.08); --line:rgba(243,235,223,.08); --line2:rgba(243,235,223,.14); --goldline:rgba(227,184,115,.24);
+    --sans:Manrope, -apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --top:env(safe-area-inset-top, 0px); --bot:env(safe-area-inset-bottom, 0px);
   }
   * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html, body { margin:0; height:100%; }
   body { background:var(--bg); color:var(--text); font:16px/1.45 var(--sans); overscroll-behavior:none; -webkit-font-smoothing:antialiased; }
   button, input, select, textarea { font:inherit; color:inherit; }
+  button { cursor:pointer; }
   [hidden] { display:none !important; }
-  a { color:var(--amber); }
+  a { color:var(--gold); }
+  svg { display:block; }
+
+  /* shared bits */
+  .eyebrow { font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--gold); }
+  .h1 { margin:6px 0 0; font-size:30px; line-height:1.08; font-weight:800; letter-spacing:-.025em; }
+  .label { font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .section { margin:30px 0 0; font-size:13px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .btn { display:flex; align-items:center; justify-content:center; gap:10px; width:100%; height:56px; padding:0 20px; border:0; border-radius:28px; background:var(--gold); color:var(--bg); font-weight:800; font-size:16px; text-decoration:none; }
+  .btn:active { transform:scale(.985); }
+  .btn:disabled { opacity:.6; }
+  .btn.ghost { height:52px; background:transparent; color:var(--text); border:1px solid rgba(243,235,223,.18); font-weight:700; font-size:15px; }
+  .btn.cream { background:var(--text); color:var(--bg); }
+  .btn svg { width:19px; height:19px; }
+  .btn + .btn { margin-top:10px; }
+  .msg { min-height:1.3em; margin:10px 0 0; font-size:14px; color:var(--muted); }
+  .msg.bad { color:var(--bad2); } .msg.ok { color:var(--ok2); }
+  .link { background:none; border:0; padding:0; color:var(--gold); font-weight:700; }
+  .field { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+  .field > span { font-size:12px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); }
+  .field input, .field textarea { width:100%; height:54px; padding:0 16px; border-radius:14px; border:1px solid var(--line2); background:var(--surf); font-size:16px; font-weight:600; outline:none; }
+  .field textarea { height:auto; min-height:118px; padding:14px 16px; line-height:1.5; font-weight:500; resize:vertical; border-radius:18px; }
+  .field input:focus, .field textarea:focus, .group input:focus, .group select:focus { border-color:var(--gold); }
+  .av { width:40px; height:40px; flex:none; border-radius:50%; background:#2a1e15; display:grid; place-items:center; font-size:13px; font-weight:800; color:var(--text); }
+  .av.me { background:var(--gold); color:var(--bg); }
 
   /* splash */
-  #splash { position:fixed; inset:0; z-index:50; display:grid; place-items:center; background:radial-gradient(120% 70% at 50% 110%, #4a2a12 0%, var(--bg2) 55%, var(--bg) 100%); transition:opacity .5s ease, visibility .5s; }
+  #splash { position:fixed; inset:0; z-index:50; display:grid; place-items:center; background:radial-gradient(120% 70% at 50% 110%, #3a2414 0%, var(--bg2) 55%, var(--bg) 100%); transition:opacity .5s ease, visibility .5s; }
   #splash.gone { opacity:0; visibility:hidden; }
   #splash .mark { text-align:center; animation:rise .9s cubic-bezier(.2,.8,.2,1) both; }
-  #splash img { width:min(62vw, 260px); display:block; margin:0 auto; }
-  .pro { display:inline-block; margin-top:14px; padding:5px 14px; border-radius:7px; background:var(--amber); color:var(--bg2); font-weight:800; letter-spacing:.14em; font-size:15px; }
-  #splash .bar { width:120px; height:3px; margin:26px auto 0; border-radius:3px; background:var(--line); overflow:hidden; }
-  #splash .bar i { display:block; height:100%; width:40%; background:var(--amber); border-radius:3px; animation:load 1s ease-in-out infinite; }
+  #splash img { width:min(58vw, 240px); display:block; margin:0 auto; }
+  #splash .pro { display:inline-flex; align-items:center; gap:10px; margin-top:16px; font-size:12px; font-weight:800; letter-spacing:.24em; color:var(--gold); }
+  #splash .pro::before, #splash .pro::after { content:""; width:26px; height:1px; background:var(--gold); }
+  #splash .bar { width:120px; height:2px; margin:26px auto 0; border-radius:2px; background:var(--line2); overflow:hidden; }
+  #splash .bar i { display:block; height:100%; width:40%; background:var(--gold); border-radius:2px; animation:load 1s ease-in-out infinite; }
   @keyframes rise { from { opacity:0; transform:translateY(14px) scale(.97); } to { opacity:1; transform:none; } }
   @keyframes load { from { transform:translateX(-100%); } to { transform:translateX(260%); } }
 
-  /* login */
-  #login { min-height:100%; display:flex; flex-direction:column; justify-content:flex-end; background:linear-gradient(180deg, rgba(20,12,7,0) 0%, rgba(20,12,7,0) 34%, rgba(20,12,7,.6) 52%, var(--bg) 64%), url(truck.jpg) 24% 0/auto 66vh no-repeat, var(--bg); padding:calc(var(--top) + 24px) 22px calc(var(--bot) + 28px); }
-  #lock { min-height:100%; display:flex; flex-direction:column; justify-content:flex-end; background:linear-gradient(180deg, rgba(20,12,7,0) 0%, rgba(20,12,7,0) 34%, rgba(20,12,7,.6) 52%, var(--bg) 64%), url(truck.jpg) 24% 0/auto 66vh no-repeat, var(--bg); padding:calc(var(--top) + 24px) 22px calc(var(--bot) + 28px); }
-  #lock .brand img { width:180px; display:block; } #lock h1 { font-size:30px; line-height:1.1; margin:18px 0 6px; } #lock p.sub { color:var(--muted); margin:0 0 22px; } #lock .btn + .btn { margin-top:10px; }
-  #login .brand img { width:180px; display:block; }
-  #login h1 { font-size:30px; line-height:1.1; margin:18px 0 6px; letter-spacing:-.01em; }
-  #login p.sub { color:var(--muted); margin:0 0 22px; }
-  .field { display:block; margin-bottom:12px; }
-  .field span { display:block; font-size:13px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
-  .field input, .field select, .field textarea { width:100%; padding:14px 14px; border-radius:12px; border:1px solid var(--line); background:rgba(36,23,16,.92); font-size:17px; outline:none; }
-  .field textarea { resize:vertical; min-height:110px; }
-  .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--amber); box-shadow:0 0 0 3px rgba(243,194,121,.18); }
-  .btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:15px 18px; border:0; border-radius:12px; background:var(--amber); color:var(--bg2); font-weight:800; font-size:17px; cursor:pointer; text-decoration:none; }
-  .btn:active { transform:scale(.985); }
-  .btn:disabled { opacity:.6; }
-  .btn.ghost { background:transparent; color:var(--text); border:1px solid var(--line); font-weight:600; }
-  .msg { min-height:1.3em; margin:10px 0 0; font-size:14px; color:var(--muted); }
-  .msg.bad { color:var(--bad); } .msg.ok { color:var(--ok); }
-  .link { background:none; border:0; padding:0; color:var(--amber); font-weight:600; cursor:pointer; }
+  /* sign in + lock */
+  .gate { min-height:100%; display:flex; flex-direction:column; padding:calc(var(--top) + 28px) 24px calc(var(--bot) + 32px); background-color:var(--bg); }
+  #login { justify-content:flex-end; background:linear-gradient(180deg, rgba(18,11,7,.2) 0%, rgba(18,11,7,0) 22%, rgba(18,11,7,.72) 52%, var(--bg) 70%), url(truck.jpg) 28% 0/auto 72vh no-repeat; }
+  #login .logo { width:150px; display:block; }
+  .kicker { margin-top:18px; display:flex; align-items:center; gap:10px; font-size:12px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); }
+  .kicker::before { content:""; width:28px; height:1px; background:var(--gold); }
+  #login h1 { margin:10px 0 24px; font-size:32px; line-height:1.08; font-weight:800; letter-spacing:-.025em; }
+  #loginForm .btn { margin-top:6px; }
+  .gate-foot { margin-top:16px; display:flex; justify-content:space-between; align-items:center; font-size:14px; }
+  .gate-foot span { font-size:12px; color:var(--dim); font-weight:600; }
+  #lock { align-items:center; text-align:center; background:linear-gradient(180deg, rgba(18,11,7,.55) 0%, rgba(18,11,7,.78) 45%, var(--bg) 78%), url(truck.jpg) 28% 0/auto 76vh no-repeat; }
+  #lock .logo { width:120px; }
+  .faceid { margin-top:auto; width:112px; height:112px; border-radius:50%; border:1px solid rgba(227,184,115,.35); display:grid; place-items:center; box-shadow:0 0 0 14px rgba(227,184,115,.06), 0 0 0 28px rgba(227,184,115,.03); color:var(--gold); }
+  .faceid svg { width:52px; height:52px; }
+  #lock h1 { margin:34px 0 0; font-size:30px; line-height:1.1; font-weight:800; letter-spacing:-.025em; }
+  #lock p.sub { margin:10px auto 0; max-width:290px; font-size:15px; line-height:1.5; color:var(--soft); }
+  #lock .acts { margin-top:auto; width:100%; padding-top:40px; }
 
   /* app frame */
   #app { position:fixed; inset:0; display:flex; flex-direction:column; }
-  .view { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:calc(var(--top) + 14px) 16px calc(var(--bot) + 96px); }
+  .view { position:relative; flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:calc(var(--top) + 22px) 24px calc(var(--bot) + 110px); }
   .view.frame { padding:0; overflow:hidden; display:flex; flex-direction:column; }
-  .view.frame header { padding:calc(var(--top) + 14px) 16px 10px; }
   .view.frame iframe { flex:1; width:100%; border:0; background:var(--bg2); margin-bottom:calc(var(--bot) + 76px); }
-  header.top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
-  header.top h2 { margin:0; font-size:26px; letter-spacing:-.01em; }
-  header.top .date { color:var(--muted); font-size:14px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
-  .avatar { width:42px; height:42px; flex:none; border-radius:50%; border:1px solid var(--line); background:var(--panel2); color:var(--amber); font-weight:800; display:grid; place-items:center; cursor:pointer; }
+  .subhead { display:flex; align-items:center; gap:10px; padding:calc(var(--top) + 14px) 16px 12px; border-bottom:1px solid var(--line); }
+  .back { width:44px; height:44px; border-radius:50%; border:1px solid var(--line2); background:transparent; display:grid; place-items:center; color:var(--text); flex:none; }
+  .back svg { width:18px; height:18px; }
+  .pagehead { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+  .pagehead .side { font-size:13px; font-weight:700; color:var(--muted); padding-bottom:4px; }
 
-  .hero { position:relative; border-radius:20px; overflow:hidden; padding:18px; margin-bottom:16px; min-height:220px; display:flex; flex-direction:column; justify-content:flex-end;
-          background:linear-gradient(180deg, rgba(20,12,7,.1) 0%, rgba(20,12,7,.35) 45%, rgba(20,12,7,.9) 100%), url(truck.jpg) 18% 58%/165% auto no-repeat; border:1px solid var(--line); }
-  .hero .k { font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--amber); }
-  .hero h3 { margin:4px 0 14px; font-size:21px; line-height:1.2; }
-  .chips { display:flex; flex-wrap:wrap; gap:8px; }
-  .chip { display:inline-flex; align-items:center; gap:7px; padding:9px 13px; border-radius:999px; font-weight:700; font-size:14px; border:1px solid; cursor:pointer; background:rgba(20,12,7,.6); }
-  .chip.y { color:var(--ok); border-color:rgba(111,191,139,.5); } .chip.n { color:var(--bad); border-color:rgba(226,114,91,.55); }
-  .chip.sm { padding:4px 9px; font-size:12px; cursor:default; }
-  .chip svg { width:15px; height:15px; }
+  /* home */
+  #v-home { padding-top:0; }
+  .photo { position:absolute; left:0; right:0; top:0; height:calc(var(--top) + 400px); pointer-events:none;
+           background:linear-gradient(180deg, rgba(18,11,7,.35) 0%, rgba(18,11,7,0) 28%, rgba(18,11,7,.86) 78%, var(--bg) 100%), url(truck.jpg) 26% 10%/cover no-repeat; }
+  .topbar { position:relative; padding-top:calc(var(--top) + 18px); display:flex; justify-content:space-between; align-items:center; }
+  .topbar img { width:104px; display:block; }
+  .avatar { width:44px; height:44px; border-radius:50%; border:1px solid rgba(243,235,223,.35); background:rgba(18,11,7,.4); color:var(--text); font-weight:800; font-size:14px; -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px); }
+  .greet { position:relative; margin-top:150px; }
+  .greet h1 { margin:8px 0 0; font-size:34px; line-height:1.05; font-weight:800; letter-spacing:-.025em; }
+  .greet p { margin:8px 0 0; font-size:15px; color:var(--soft); line-height:1.45; }
+  .tiles { position:relative; margin-top:22px; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
+  .tiles.two { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .tiles.one { grid-template-columns:1fr; }
+  .ftile { height:96px; border-radius:18px; background:var(--surf); border:1px solid var(--line2); color:var(--text); padding:14px; display:flex; flex-direction:column; justify-content:space-between; text-decoration:none; text-align:left; }
+  .ftile svg { width:20px; height:20px; }
+  .ftile b { display:block; font-size:15px; font-weight:800; }
+  .ftile small { display:block; font-size:12px; font-weight:700; color:var(--gold); }
+  .ftile.done { background:var(--gold); border-color:var(--gold); color:var(--bg); }
+  .ftile.done small { color:var(--bg); opacity:.72; }
+  .band { position:relative; margin-top:22px; padding:16px 0; border-top:1px solid var(--goldline); border-bottom:1px solid var(--goldline); display:flex; justify-content:space-between; align-items:center; }
+  .band .k { font-size:11px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .band .v { margin-top:4px; font-size:28px; font-weight:800; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .band .v small { font-size:15px; font-weight:600; color:var(--muted); }
+  .band .r { text-align:right; } .band .r .v { color:var(--gold); }
+  #newTicket { position:relative; margin-top:20px; }
+  .crewcard { margin-top:22px; border-radius:18px; background:var(--surf); border:1px solid var(--line2); padding:16px; display:flex; align-items:center; gap:14px; color:var(--text); text-decoration:none; width:100%; text-align:left; }
+  .crewcard .n { display:flex; gap:16px; margin-top:6px; font-size:13px; font-weight:700; }
+  .crewcard svg { width:18px; height:18px; color:var(--gold); margin-left:auto; flex:none; }
+  .boardhead { margin-top:34px; display:flex; justify-content:space-between; align-items:baseline; }
+  .boardhead h2 { margin:0; font-size:19px; font-weight:800; letter-spacing:-.01em; }
+  .boardhead span { font-size:13px; color:var(--muted); font-weight:600; }
+  .boardnote { margin:4px 0 0; font-size:13px; color:var(--muted); }
+  .podium { margin-top:14px; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; align-items:end; }
+  .pod { border-radius:18px 18px 6px 6px; background:var(--surf); border:1px solid rgba(243,235,223,.10); padding:14px 8px; text-align:center; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; min-width:0; }
+  .pod .av { width:38px; height:38px; }
+  .pod b { margin-top:8px; font-size:13px; font-weight:800; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pod small { font-size:12px; color:var(--muted); font-weight:700; }
+  .pod.p1 { height:150px; background:linear-gradient(180deg, rgba(227,184,115,.22), rgba(227,184,115,.06)); border-color:rgba(227,184,115,.45); }
+  .pod.p1 .av { width:42px; height:42px; background:var(--gold); color:var(--bg); }
+  .pod.p1 small { color:var(--gold); }
+  .pod.p1 svg { width:20px; height:20px; color:var(--gold); margin-bottom:6px; }
+  .pod.p2 { height:120px; } .pod.p3 { height:106px; }
+  .lrow { display:flex; align-items:center; gap:14px; height:52px; border-bottom:1px solid var(--line); }
+  .lrow:last-child { border-bottom:0; }
+  .lrow .rk { width:22px; font-size:14px; font-weight:800; color:var(--muted); }
+  .lrow .nm { flex:1; font-size:15px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .lrow .bar { width:84px; height:4px; border-radius:2px; background:rgba(243,235,223,.10); overflow:hidden; flex:none; }
+  .lrow .bar i { display:block; height:100%; background:var(--gold); border-radius:2px; }
+  .lrow .sc { width:40px; text-align:right; font-size:13px; font-weight:700; color:var(--soft); font-variant-numeric:tabular-nums; }
+  .lrow.me .nm { color:var(--gold); font-weight:800; }
+  .empty { color:var(--muted); font-size:14px; padding:10px 0; }
 
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
-  .tile { position:relative; display:flex; flex-direction:column; justify-content:space-between; min-height:104px; padding:14px; border-radius:16px; background:var(--panel); border:1px solid var(--line); color:var(--text); text-decoration:none; text-align:left; cursor:pointer; }
-  .tile:active { background:var(--panel2); }
-  .tile .ic { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; background:rgba(243,194,121,.12); color:var(--amber); }
-  .tile .ic svg { width:20px; height:20px; }
-  .tile b { font-size:16px; margin-top:12px; } .tile small { color:var(--muted); font-size:13px; }
-  .tile .done { position:absolute; top:12px; right:12px; width:22px; height:22px; border-radius:50%; background:var(--ok); color:var(--bg2); display:grid; place-items:center; }
-  .tile .done svg { width:14px; height:14px; }
+  /* safety */
+  .week { margin-top:22px; display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:6px; text-align:center; }
+  .week .d { font-size:11px; font-weight:700; color:var(--muted); }
+  .week .c { margin-top:6px; height:46px; border-radius:12px; background:var(--surf); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; }
+  .week .c b { font-size:14px; font-weight:800; }
+  .week .c i { width:6px; height:6px; border-radius:50%; }
+  .week .c.off { background:transparent; border:1px dashed var(--line2); } .week .c.off b { color:var(--dim); }
+  .week .c.off em { font-style:normal; font-size:9px; font-weight:700; letter-spacing:.06em; color:var(--dim); }
+  .week .c.today { background:var(--gold); color:var(--bg); } .week .c.today em { font-style:normal; font-size:9px; font-weight:800; }
+  .week .today-l { color:var(--gold); font-weight:800; }
+  .legend { margin-top:10px; display:flex; gap:16px; font-size:12px; color:var(--muted); font-weight:600; }
+  .legend span { display:flex; align-items:center; gap:6px; }
+  .legend i { width:8px; height:8px; border-radius:50%; }
+  .fcards { margin-top:12px; display:flex; flex-direction:column; gap:10px; }
+  .fcard { border-radius:18px; background:var(--surf); border:1px solid rgba(243,235,223,.10); padding:16px; display:flex; align-items:center; gap:14px; color:var(--text); text-decoration:none; }
+  .fcard .ic { width:44px; height:44px; border-radius:14px; display:grid; place-items:center; flex:none; background:var(--gold); color:var(--bg); }
+  .fcard .ic svg { width:21px; height:21px; }
+  .fcard .t { flex:1; min-width:0; } .fcard b { display:block; font-size:16px; font-weight:800; } .fcard small { display:block; margin-top:2px; font-size:13px; color:var(--soft); font-weight:600; }
+  .fcard .go svg { width:18px; height:18px; color:var(--gold); }
+  .fcard.due { background:rgba(227,184,115,.08); border-color:rgba(227,184,115,.40); }
+  .fcard.sent .ic { background:rgba(111,191,138,.16); color:var(--ok); } .fcard.sent small { color:var(--muted); }
+  .fcard.sent .go { font-size:12px; font-weight:800; color:var(--ok); }
+  .fcard.na { opacity:.6; } .fcard.na .ic { background:var(--surf2); color:var(--muted); }
+  .lines { margin-top:6px; }
+  .line { display:flex; align-items:center; gap:14px; min-height:60px; border-bottom:1px solid var(--line); color:var(--text); text-decoration:none; background:none; border-left:0; border-right:0; border-top:0; width:100%; text-align:left; padding:0; }
+  .line:last-child { border-bottom:0; }
+  .line > svg { width:20px; height:20px; color:var(--muted); flex:none; }
+  .line .t { flex:1; min-width:0; font-size:15px; font-weight:700; }
+  .line .t small { display:block; font-size:12px; color:var(--muted); font-weight:600; }
+  .line .end { font-size:14px; font-weight:700; color:var(--gold); }
+  .line .chev { width:16px; height:16px; color:var(--dim); }
+  .line .tag { font-size:11px; font-weight:800; padding:4px 9px; border-radius:10px; }
+  .tag.ok { background:rgba(111,191,138,.16); color:var(--ok2); } .tag.warn { background:rgba(227,184,115,.16); color:var(--gold2); } .tag.bad { background:rgba(224,122,95,.16); color:var(--bad2); } .tag.none { background:var(--surf2); color:var(--muted); }
+  .docic { width:40px; height:40px; border-radius:12px; background:var(--surf2); display:grid; place-items:center; flex:none; color:var(--gold); }
+  .docic svg { width:18px; height:18px; }
 
-  .stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:16px; }
-  .stat { padding:13px 12px; border-radius:16px; background:var(--panel); border:1px solid var(--line); }
-  .stat b { display:block; font-size:24px; line-height:1.05; font-variant-numeric:tabular-nums; color:var(--amber); }
-  .stat span { display:block; margin-top:5px; font-size:12px; color:var(--muted); font-weight:600; }
+  /* ticket */
+  .trucks { margin-top:8px; display:grid; grid-template-columns:repeat(4, minmax(0, 1fr)); gap:6px; }
+  .trucks button { height:46px; border-radius:12px; border:1px solid var(--line2); background:transparent; color:var(--soft); font-size:14px; font-weight:800; }
+  .trucks button[aria-pressed="true"] { border-color:var(--gold); background:var(--gold); color:var(--bg); }
+  .steppers { margin-top:18px; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+  .stepper { border-radius:18px; background:var(--surf); border:1px solid rgba(243,235,223,.10); padding:14px 12px; min-width:0; }
+  .stepper .row { margin-top:10px; display:flex; align-items:center; justify-content:space-between; gap:4px; }
+  .stepper button { width:42px; height:42px; border-radius:50%; border:1px solid var(--line2); background:transparent; color:var(--text); font-size:22px; font-weight:600; line-height:1; flex:none; }
+  .stepper input { flex:1; width:0; min-width:0; border:0; background:transparent; text-align:center; font-size:30px; font-weight:800; letter-spacing:-.02em; outline:none; -moz-appearance:textfield; padding:0; }
+  .stepper input::-webkit-outer-spin-button, .stepper input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .stepper input.zero { color:var(--dim); }
+  .group { margin-top:12px; border-radius:18px; background:var(--surf); border:1px solid rgba(243,235,223,.10); overflow:hidden; }
+  .group label { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 16px; min-height:58px; border-bottom:1px solid var(--line); }
+  .group label:last-child { border-bottom:0; }
+  .group label > span { font-size:14px; font-weight:700; color:var(--muted); flex:none; }
+  .group input, .group select { flex:1; min-width:0; height:56px; border:0; background:transparent; text-align:right; font-size:15px; font-weight:700; outline:none; -webkit-appearance:none; appearance:none; }
+  .group select { text-align-last:right; padding-right:22px; background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237e7366' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") right center no-repeat; }
+  .group select option { background:#1a110b; color:var(--text); }
+  .group input::placeholder { color:var(--dim); font-weight:600; }
+  .group input[type=date] { color-scheme:dark; }
+  .switch { position:relative; width:50px; height:30px; flex:none; }
+  .switch input { position:absolute; inset:0; opacity:0; margin:0; width:100%; height:100%; cursor:pointer; }
+  .switch i { position:absolute; inset:0; border-radius:15px; background:rgba(243,235,223,.14); transition:background .2s; pointer-events:none; }
+  .switch i::after { content:""; position:absolute; left:3px; top:3px; width:24px; height:24px; border-radius:50%; background:var(--text); transition:transform .2s; }
+  .switch input:checked + i { background:var(--gold); } .switch input:checked + i::after { transform:translateX(20px); background:var(--bg); }
+  #tkForm .field { margin-top:22px; }
+  #tkSend { margin-top:22px; }
+  .done-wrap { padding-top:60px; text-align:center; display:flex; flex-direction:column; align-items:center; }
+  .bigcheck { width:96px; height:96px; border-radius:50%; background:rgba(111,191,138,.14); display:grid; place-items:center; box-shadow:0 0 0 14px rgba(111,191,138,.06); }
+  .bigcheck span { width:64px; height:64px; border-radius:50%; background:var(--ok); color:var(--bg); display:grid; place-items:center; }
+  .bigcheck svg { width:30px; height:30px; }
+  .done-wrap h2 { margin:30px 0 0; font-size:28px; font-weight:800; letter-spacing:-.025em; }
+  .done-wrap p { margin:8px 0 0; font-size:15px; color:var(--soft); line-height:1.5; max-width:310px; }
+  .summary { margin-top:28px; width:100%; border-radius:18px; background:var(--surf); border:1px solid rgba(243,235,223,.10); text-align:left; }
+  .summary div { display:flex; justify-content:space-between; gap:12px; padding:14px 16px; border-bottom:1px solid var(--line); font-size:14px; }
+  .summary div:last-child { border-bottom:0; }
+  .summary span { color:var(--muted); font-weight:600; } .summary b { font-weight:800; text-align:right; }
+  .done-acts { width:100%; margin-top:28px; }
 
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:16px; }
-  .card h4 { margin:0 0 10px; font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
-  .row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-top:1px solid var(--line); }
-  .row:first-of-type { border-top:0; }
-  .row .nm { font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .row .chips { justify-content:flex-end; gap:5px; }
-  .empty { color:var(--muted); font-size:14px; padding:6px 0; }
+  /* hours */
+  .paycard { margin-top:20px; border-radius:22px; padding:20px; background:linear-gradient(160deg, rgba(227,184,115,.20), rgba(227,184,115,.04) 70%); border:1px solid rgba(227,184,115,.32); }
+  .paycard .k { font-size:12px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; color:var(--soft); }
+  .paycard .big { margin-top:6px; font-size:46px; line-height:1; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+  .paycard .big small { font-size:18px; font-weight:700; color:var(--soft); margin-left:6px; }
+  .paycard .three { margin-top:16px; display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
+  .paycard .three b { display:block; font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; } .paycard .three span { font-size:12px; color:var(--soft); font-weight:600; }
+  .monthbar { margin-top:26px; display:flex; justify-content:space-between; align-items:center; }
+  .monthbar h2 { margin:0; font-size:19px; font-weight:800; }
+  .monthbar .arrows { display:flex; gap:6px; }
+  .round { width:40px; height:40px; border-radius:50%; border:1px solid var(--line2); background:transparent; color:var(--text); display:grid; place-items:center; }
+  .round svg { width:16px; height:16px; }
+  .dow, .cal { display:grid; grid-template-columns:repeat(7, minmax(0, 1fr)); gap:4px; }
+  .dow { margin-top:14px; font-size:11px; font-weight:700; color:var(--dim); text-align:center; }
+  .cal { margin-top:6px; }
+  .cal div { height:54px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; }
+  .cal .n { font-size:11px; font-weight:700; color:var(--muted); }
+  .cal .h { font-size:14px; font-weight:800; min-height:16px; font-variant-numeric:tabular-nums; }
+  .cal i { width:5px; height:5px; border-radius:50%; }
+  .cal .w { background:var(--surf2); }
+  .cal .t { border:1.5px solid var(--gold); background:rgba(227,184,115,.10); } .cal .t .h { color:var(--gold); font-size:10px; }
+  .cal .f .n { color:var(--faint); }
+  .cal div { position:relative; }
+  .cal .pay::after { content:"$"; position:absolute; top:3px; right:3px; min-width:14px; height:14px; border-radius:7px; background:var(--gold); color:var(--bg); font-size:9px; font-weight:800; line-height:14px; text-align:center; }
+  .cal .cut::before { content:""; position:absolute; top:8px; bottom:8px; right:-3px; width:2px; border-radius:1px; background:var(--bad); }
+  .paynext { margin-top:16px; padding-top:14px; border-top:1px solid rgba(227,184,115,.25); display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .paynext b { display:block; font-size:16px; font-weight:800; } .paynext span { font-size:12px; color:var(--soft); font-weight:600; }
+  .legend .sq { width:14px; height:14px; border-radius:7px; background:var(--gold); color:var(--bg); font-size:9px; font-weight:800; display:grid; place-items:center; font-style:normal; }
+  .legend .ln { width:2px; height:12px; border-radius:1px; background:var(--bad); }
 
-  .list a { display:flex; align-items:center; gap:14px; padding:15px; margin-bottom:10px; border-radius:16px; background:var(--panel); border:1px solid var(--line); color:var(--text); text-decoration:none; }
-  .list a:active { background:var(--panel2); }
-  .list .ic { width:44px; height:44px; flex:none; border-radius:12px; display:grid; place-items:center; background:rgba(243,194,121,.12); color:var(--amber); }
-  .list .ic svg { width:24px; height:24px; }
-  .list b { display:block; font-size:17px; } .list small { color:var(--muted); font-size:13.5px; }
-  .list .st { margin-left:auto; flex:none; }
-  .seg { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  /* crew today (admin) */
+  .counts { margin-top:20px; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
+  .count { border-radius:16px; padding:14px; border:1px solid; }
+  .count b { display:block; font-size:26px; font-weight:800; } .count span { font-size:12px; font-weight:700; color:var(--soft); }
+  .count.ok { background:rgba(111,191,138,.10); border-color:rgba(111,191,138,.30); } .count.ok b { color:var(--ok2); }
+  .count.bad { background:rgba(224,122,95,.10); border-color:rgba(224,122,95,.32); } .count.bad b { color:var(--bad2); }
+  .crow { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
+  .crow.card { border-radius:18px; background:var(--surf); border:1px solid rgba(224,122,95,.30); padding:14px 16px; margin-top:8px; }
+  .crow .t { flex:1; min-width:0; } .crow b { display:block; font-size:15px; font-weight:800; }
+  .pills { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .pill { height:24px; padding:0 9px; border-radius:12px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px; }
+  .pill.y { background:rgba(111,191,138,.16); color:var(--ok2); } .pill.n { background:rgba(224,122,95,.16); color:var(--bad2); }
 
   /* tab bar */
-  nav.tabs { position:fixed; left:0; right:0; bottom:0; z-index:20; display:grid; grid-template-columns:repeat(4, 1fr); padding:8px 6px calc(var(--bot) + 8px);
-             background:rgba(20,12,7,.86); backdrop-filter:saturate(1.4) blur(18px); -webkit-backdrop-filter:saturate(1.4) blur(18px); border-top:1px solid var(--line); }
-  nav.tabs button { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; background:none; border:0; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.03em; cursor:pointer; }
-  nav.tabs svg { width:25px; height:25px; }
-  nav.tabs button[aria-selected="true"] { color:var(--amber); }
+  nav.tabs { position:fixed; left:0; right:0; bottom:0; z-index:20; display:grid; grid-template-columns:repeat(4, 1fr); padding:10px 10px calc(var(--bot) + 10px);
+             background:rgba(18,11,7,.92); -webkit-backdrop-filter:saturate(1.4) blur(18px); backdrop-filter:saturate(1.4) blur(18px); border-top:1px solid var(--line); }
+  nav.tabs button { display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0; background:none; border:0; color:#8a7e70; font-size:11px; font-weight:700; }
+  nav.tabs svg { width:22px; height:22px; }
+  nav.tabs button[aria-selected="true"] { color:var(--gold); }
 
-  /* sheet */
-  .scrim { position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:opacity .25s; }
+  /* sheets */
+  .scrim { position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.55); opacity:0; pointer-events:none; transition:opacity .25s; }
   .scrim.on { opacity:1; pointer-events:auto; }
-  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:41; padding:10px 18px calc(var(--bot) + 22px); border-radius:22px 22px 0 0; background:var(--bg2); border-top:1px solid var(--line); transform:translateY(105%); transition:transform .32s cubic-bezier(.2,.8,.2,1); }
+  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:41; padding:10px 20px calc(var(--bot) + 24px); border-radius:24px 24px 0 0; background:var(--bg2); border-top:1px solid var(--line2); transform:translateY(105%); transition:transform .32s cubic-bezier(.2,.8,.2,1); }
   .sheet.on { transform:none; }
-  .sheet .grab { width:40px; height:5px; border-radius:3px; background:var(--line); margin:0 auto 14px; }
-  .sheet h3 { margin:0 0 2px; font-size:20px; } .sheet p { margin:0 0 16px; color:var(--muted); }
-  .sheet .btn + .btn, #loginForm .btn + .btn { margin-top:10px; }
-  .toast { position:fixed; left:50%; bottom:calc(var(--bot) + 92px); z-index:60; transform:translate(-50%, 20px); opacity:0; padding:12px 18px; border-radius:12px; background:var(--panel2); border:1px solid var(--line); font-weight:600; font-size:14px; transition:all .25s; pointer-events:none; }
+  .sheet .grab { width:40px; height:5px; border-radius:3px; background:var(--line2); margin:0 auto 16px; }
+  .sheet h3 { margin:0 0 4px; font-size:20px; font-weight:800; } .sheet p { margin:0 0 18px; color:var(--soft); font-size:15px; line-height:1.45; }
+  .toast { position:fixed; left:50%; bottom:calc(var(--bot) + 96px); z-index:60; transform:translate(-50%, 20px); opacity:0; padding:12px 18px; border-radius:14px; background:#2a1e15; border:1px solid var(--line2); font-weight:700; font-size:14px; transition:all .25s; pointer-events:none; white-space:nowrap; }
   .toast.on { opacity:1; transform:translate(-50%, 0); }
   @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
-  @media (min-width:700px) { .view { max-width:560px; margin:0 auto; width:100%; } nav.tabs { max-width:560px; margin:0 auto; border-radius:20px 20px 0 0; } }
+  @media (min-width:700px) { .view { max-width:520px; margin:0 auto; width:100%; } nav.tabs { max-width:520px; margin:0 auto; border-radius:20px 20px 0 0; } .photo { max-width:520px; margin:0 auto; } }
 </style>
 </head>
 <body>
 
-<div id="splash"><div class="mark"><img src="logo-cream.png" alt="Montney Projects Corp"><div class="pro">PRO</div><div class="bar"><i></i></div></div></div>
+<div id="splash"><div class="mark"><img src="logo-cream.png" alt="Montney Projects Corp"><div class="pro">MONTNEYPRO</div><div class="bar"><i></i></div></div></div>
 
 <!-- Sign in -->
-<section id="login" hidden>
-  <div class="brand"><img src="logo-cream.png" alt="Montney Projects Corp"></div>
-  <h1>Welcome to MontneyPro</h1>
-  <p class="sub" id="liSub">Sign in with the email your invite was sent to.</p>
+<section id="login" class="gate" hidden>
+  <img class="logo" src="logo-cream.png" alt="Montney Projects Corp">
+  <div class="kicker">MontneyPro</div>
+  <h1>Safety, tickets and hours. One app.</h1>
   <form id="loginForm" autocomplete="on">
     <label class="field"><span>Email</span><input id="liEmail" type="email" name="username" autocomplete="username" inputmode="email" required></label>
     <label class="field"><span>Password</span><input id="liPass" type="password" name="password" autocomplete="current-password" required></label>
     <button class="btn" id="liBtn">Sign in</button>
     <p class="msg" id="liMsg" aria-live="polite"></p>
   </form>
-  <p style="margin:6px 0 0; font-size:14px"><button class="link" id="forgot" type="button">Forgot your password?</button></p>
+  <div class="gate-foot"><button class="link" id="forgot" type="button">Forgot password?</button><span>Montney Projects Corp</span></div>
 </section>
 
 <!-- Locked after 15 min: Face ID / fingerprint to get back in -->
-<section id="lock" hidden>
-  <div class="brand"><img src="logo-cream.png" alt="Montney Projects Corp"></div>
+<section id="lock" class="gate" hidden>
+  <img class="logo" src="logo-cream.png" alt="Montney Projects Corp">
+  <div class="faceid" data-i="face"></div>
   <h1 id="lkTitle">Welcome back</h1>
-  <p class="sub" id="lkSub">You were signed out after 15 minutes. Use Face ID to get back in.</p>
-  <button class="btn" id="lkGo" type="button">Use Face ID</button>
-  <button class="btn ghost" id="lkPw" type="button">Use password instead</button>
-  <p class="msg" id="lkMsg" aria-live="polite"></p>
+  <p class="sub" id="lkSub">You were signed out after 15 minutes.</p>
+  <div class="acts">
+    <button class="btn" id="lkGo" type="button"><span data-i="face"></span><span id="lkGoText">Unlock with Face ID</span></button>
+    <button class="btn ghost" id="lkPw" type="button">Use password instead</button>
+    <p class="msg" id="lkMsg" aria-live="polite"></p>
+  </div>
 </section>
 
 <!-- App -->
 <div id="app" hidden>
   <section class="view" id="v-home">
-    <header class="top">
-      <div><div class="date" id="today"></div><h2 id="hello">Hi</h2></div>
-      <button class="avatar" id="avatar" aria-label="Account"></button>
-    </header>
-    <div class="hero" id="todayCard">
-      <div class="k">Today's safety forms</div>
-      <h3 id="todayTitle">Loading...</h3>
-      <div class="chips" id="todayChips"></div>
+    <div class="photo"></div>
+    <div class="topbar"><img src="logo-cream.png" alt="Montney Projects Corp"><button class="avatar" id="avatar" aria-label="Account"></button></div>
+    <div class="greet">
+      <div class="eyebrow" id="today"></div>
+      <h1 id="hello">Hi</h1>
+      <p id="todaySub">Loading your day...</p>
     </div>
-    <div class="grid" id="quick"></div>
-    <div class="stats">
-      <div class="stat"><b id="sHours">-</b><span>Hours this pay period</span></div>
-      <div class="stat"><b id="sFlha">-</b><span>FLHAs this period</span></div>
-      <div class="stat"><b id="sRank">-</b><span>FLHA leaderboard</span></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="band">
+      <div><div class="k">This pay period</div><div class="v"><span id="sHours">-</span> <small>hours</small></div></div>
+      <div class="r"><div class="k">FLHA board</div><div class="v"><span id="sRank">-</span> <small id="sFlha"></small></div></div>
     </div>
-    <div class="card" id="crewCard" hidden><h4>Crew today</h4><div id="crewList"></div></div>
-    <div class="card" id="boardCard"><h4>FLHA leaderboard</h4><div id="board"><p class="empty">Loading...</p></div></div>
+    <button class="btn cream" id="newTicket" type="button" data-go="ticket"><span data-i="plus"></span>New field ticket</button>
+    <button class="crewcard" id="crewCard" type="button" data-go="crew" hidden>
+      <span><span class="label">Crew today</span><span class="n" id="crewCounts"></span></span><span data-i="chev"></span>
+    </button>
+    <div class="boardhead"><h2>FLHA leaderboard</h2><span id="boardRange"></span></div>
+    <p class="boardnote">Days with an FLHA out of days worked. Top spot gets the gift card.</p>
+    <div class="podium" id="podium"></div>
+    <div id="board"><p class="empty">Loading...</p></div>
   </section>
 
   <section class="view" id="v-safety" hidden>
-    <header class="top"><h2>Safety</h2></header>
-    <div class="list" id="formList"></div>
-    <div class="card"><h4>Company</h4>
-      <div class="list" style="margin:0"><a href="../Montney-Safety-Manual-Contents.pdf" target="_blank" rel="noopener"><span class="ic" data-i="book"></span><span><b>Safety manual</b><small>Contents and policies</small></span></a></div>
+    <div class="eyebrow">Safety</div>
+    <h1 class="h1">Your forms</h1>
+    <div id="weekWrap">
+      <div class="week" id="week"></div>
+      <div class="legend"><span><i style="background:var(--ok)"></i>All sent</span><span><i style="background:var(--bad)"></i>Something missed</span></div>
+    </div>
+    <h2 class="section">Today</h2>
+    <div class="fcards" id="formList"></div>
+    <h2 class="section">Company</h2>
+    <div class="lines">
+      <a class="line" href="../Montney-Safety-Manual-Contents.pdf" target="_blank" rel="noopener"><span data-i="book"></span><span class="t">Safety manual</span><span class="chev" data-i="chev"></span></a>
+      <a class="line" href="tel:+18666771908"><span data-i="phone"></span><span class="t">24/7 hotline</span><span class="end">1-866-677-1908</span></a>
     </div>
   </section>
 
   <section class="view" id="v-ticket" hidden>
-    <header class="top"><h2>Field ticket</h2></header>
-    <form id="tkGate" hidden>
-      <p style="color:var(--muted); margin-top:0">Enter the crew code once. MontneyPro remembers it.</p>
+    <div class="pagehead"><div><div class="eyebrow">Field ticket</div><h1 class="h1">End of day</h1></div><span class="side" id="tkToday"></span></div>
+    <form id="tkGate" hidden style="margin-top:24px">
+      <p style="color:var(--soft); margin:0 0 16px">Enter the crew code once. MontneyPro remembers it.</p>
       <label class="field"><span>Crew code</span><input id="tk-code" inputmode="numeric" autocomplete="off" required></label>
       <button class="btn">Unlock field tickets</button>
       <p class="msg" id="tkGateMsg" aria-live="polite"></p>
     </form>
     <form id="tkForm" autocomplete="off" hidden>
-      <div class="seg">
-        <label class="field"><span>Truck #</span><select id="tk-truck" required><option value="">Pick</option><option>001</option><option>002</option><option>003</option><option>004</option><option>005</option><option>006</option><option>009</option><option>Skid steer</option></select></label>
-        <label class="field"><span>Date</span><input type="date" id="tk-date" required></label>
+      <div class="label" style="margin-top:24px">Truck</div>
+      <div class="trucks" id="trucks"></div>
+      <input type="hidden" id="tk-truck">
+      <div class="steppers">
+        <div class="stepper"><div class="label">Billable hrs</div><div class="row"><button type="button" data-step="tk-hours" data-d="-0.5" aria-label="Less billable hours">−</button><input type="number" id="tk-hours" min="0" max="24" step="0.5" inputmode="decimal" placeholder="0" aria-label="Billable hours"><button type="button" data-step="tk-hours" data-d="0.5" aria-label="More billable hours">+</button></div></div>
+        <div class="stepper"><div class="label">Shop hrs</div><div class="row"><button type="button" data-step="tk-shop" data-d="-0.5" aria-label="Less shop hours">−</button><input type="number" id="tk-shop" min="0" max="24" step="0.5" inputmode="decimal" placeholder="0" aria-label="Shop hours"><button type="button" data-step="tk-shop" data-d="0.5" aria-label="More shop hours">+</button></div></div>
       </div>
-      <div class="seg">
-        <label class="field"><span>Billable hrs</span><input type="number" id="tk-hours" min="0" max="24" step="0.5" inputmode="decimal" placeholder="Client work"></label>
-        <label class="field"><span>Shop hrs</span><input type="number" id="tk-shop" min="0" max="24" step="0.5" inputmode="decimal" placeholder="Not billed"></label>
+      <div class="group" style="margin-top:22px">
+        <label><span>Date</span><input type="date" id="tk-date" required></label>
+        <label><span>Client</span><select id="tk-client"><option value="">Pick client</option><option>Mastec-Purnell</option><option>Sundown Oilfield Services</option><option>Inked Energy Services</option><option>Sureline Projects</option><option>Weaver Group</option><option>Excel Projects</option><option>Fit N It Oilfield</option><option>Shop</option></select></label>
+        <label><span>Job #</span><input id="tk-job" placeholder="Optional"></label>
+        <label><span>Supervisor</span><input id="tk-supervisor" placeholder="Name"></label>
+        <label><span>Location</span><input id="tk-location" placeholder="LSD or site"></label>
       </div>
-      <label class="field"><span>Client</span><select id="tk-client"><option value="">Pick client</option><option>Mastec-Purnell</option><option>Sundown Oilfield Services</option><option>Inked Energy Services</option><option>Sureline Projects</option><option>Weaver Group</option><option>Excel Projects</option><option>Fit N It Oilfield</option><option>Shop</option></select></label>
-      <div class="seg">
-        <label class="field"><span>Job #</span><input id="tk-job"></label>
-        <label class="field"><span>Supervisor</span><input id="tk-supervisor"></label>
-      </div>
-      <label class="field"><span>Location</span><input id="tk-location" placeholder="LSD or site"></label>
-      <div class="seg">
-        <label class="field"><span>Fitter</span><input id="tk-fitter" list="crewNames" required></label>
-        <label class="field"><span>Helper</span><input id="tk-helper" list="helperNames" placeholder="or No helper" required></label>
+      <div class="group">
+        <label><span>Fitter</span><input id="tk-fitter" list="crewNames" placeholder="Name" required></label>
+        <label><span>Helper</span><input id="tk-helper" list="helperNames" placeholder="or No helper" required></label>
+        <label><span>SUB / LOA</span><span class="switch"><input type="checkbox" id="tk-sub" aria-label="SUB or LOA"><i></i></span></label>
       </div>
       <datalist id="crewNames"></datalist><datalist id="helperNames"><option value="No helper"></option></datalist>
-      <label class="field" style="display:flex; align-items:center; gap:10px"><input type="checkbox" id="tk-sub" style="width:22px; height:22px; accent-color:var(--amber)"><span style="margin:0">SUB / LOA</span></label>
-      <label class="field"><span>Work scope</span><textarea id="tk-scope" rows="4" required></textarea></label>
+      <label class="field"><span>Work scope</span><textarea id="tk-scope" rows="4" required placeholder="What you did today"></textarea></label>
       <button class="btn" id="tkSend">Submit field ticket</button>
       <p class="msg" id="tkMsg" aria-live="polite"></p>
     </form>
-    <div class="card" id="tkDone" hidden style="text-align:center; padding:28px 18px">
-      <div style="width:56px; height:56px; margin:0 auto 12px; border-radius:50%; background:var(--ok); color:var(--bg2); display:grid; place-items:center" data-i="check"></div>
-      <h3 style="margin:0 0 6px">Ticket saved</h3><p style="color:var(--muted); margin:0 0 18px" id="tkDoneMsg"></p>
-      <button class="btn" type="button" id="tkAgain">Add another ticket</button>
+    <div class="done-wrap" id="tkDone" hidden>
+      <div class="bigcheck"><span data-i="check"></span></div>
+      <h2>Ticket's in</h2>
+      <p id="tkDoneMsg"></p>
+      <div class="summary" id="tkSummary"></div>
+      <div class="done-acts"><button class="btn ghost" type="button" id="tkAgain">Add another ticket</button><button class="btn" type="button" data-go="home">Done</button></div>
     </div>
   </section>
 
-  <section class="view frame" id="v-hours" hidden>
-    <header class="top" style="margin:0"><h2>Hours &amp; documents</h2></header>
-    <iframe id="portalFrame" title="Hours and documents"></iframe>
+  <section class="view" id="v-hours" hidden>
+    <div class="eyebrow">Hours</div>
+    <h1 class="h1" id="payTitle">This pay period</h1>
+    <div class="paycard">
+      <div class="k">Pay period total</div>
+      <div class="big"><span id="pTotal">-</span><small>hrs</small></div>
+      <div class="three"><div><b id="pBill">-</b><span>Billable</span></div><div><b id="pShop">-</b><span>Shop</span></div><div><b id="pDays">-</b><span>Days worked</span></div></div>
+      <div class="paynext"><div><b id="nCut">-</b><span>Next cut-off</span></div><div><b id="nPay">-</b><span>Next payday</span></div></div>
+    </div>
+    <div class="monthbar"><h2 id="calTitle"></h2><div class="arrows"><button class="round" type="button" id="calPrev" aria-label="Last month" data-i="left"></button><button class="round" type="button" id="calNext" aria-label="Next month" data-i="chev"></button></div></div>
+    <div class="dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+    <div class="cal" id="cal"></div>
+    <div class="legend" style="flex-wrap:wrap; row-gap:8px"><span><i style="background:var(--ok)"></i>Forms sent</span><span><i style="background:var(--bad)"></i>Form missed</span><span><em class="sq">$</em>Payday</span><span><em class="ln"></em>Cut-off</span></div>
+    <h2 class="section">Documents</h2>
+    <div class="lines" id="docs"><p class="empty">Loading...</p></div>
+    <button class="btn ghost" type="button" data-go="portal" style="margin-top:16px">Upload or manage documents</button>
+  </section>
+
+  <section class="view frame" id="v-portal" hidden>
+    <div class="subhead"><button class="back" type="button" data-go="hours" aria-label="Back" data-i="left"></button><b style="font-size:17px">Documents</b></div>
+    <iframe id="portalFrame" title="Documents"></iframe>
+  </section>
+
+  <section class="view" id="v-crew" hidden>
+    <div class="pagehead"><div><div class="eyebrow" id="crewDate">Admin</div><h1 class="h1">Crew today</h1></div><button class="back" type="button" data-go="home" aria-label="Back" data-i="left"></button></div>
+    <div class="counts"><div class="count ok"><b id="cIn">-</b><span>All forms in</span></div><div class="count bad"><b id="cOut">-</b><span>Missing forms</span></div></div>
+    <h2 class="section" id="lateHead">Still owes forms</h2>
+    <div id="lateList"></div>
+    <h2 class="section">All in</h2>
+    <div id="goodList"></div>
   </section>
 
   <nav class="tabs" role="tablist">
     <button role="tab" data-v="home" aria-selected="true"><span data-i="home"></span>Home</button>
     <button role="tab" data-v="safety"><span data-i="shield"></span>Safety</button>
-    <button role="tab" data-v="ticket"><span data-i="ticket"></span>Ticket</button>
-    <button role="tab" data-v="hours"><span data-i="cal"></span>Hours</button>
+    <button role="tab" data-v="ticket"><span data-i="ticket"></span>Tickets</button>
+    <button role="tab" data-v="hours"><span data-i="clock"></span>Hours</button>
   </nav>
 </div>
 
@@ -265,26 +462,31 @@
   const SUPABASE_URL = "https://nwcbvchcdsbwwnnbtyht.supabase.co";
   const SUPABASE_KEY = "sb_publishable_JtICuOehqdwzQOm8v0i-SA_qf21Bh0e";   // public key, safe here
   const TICKETS_URL = "https://script.google.com/macros/s/AKfycbznqXX6MkxGNm8hfhau6KIHJDErE9C9ih_mD_n5FeL3r7AAcC5SfjtePYiV9_Vo1-xaRw/exec";
+  const DOC_BUCKET = "employee-docs";
+  const TRUCKS = ["001", "002", "003", "004", "005", "006", "009", "Skid steer"];
   const FORMS = [
-    { form:"FLHA", page:"flha.html", title:"FLHA", sub:"Field Level Hazard Assessment", icon:"shield", owed:() => true },
-    { form:"Pre-Trip", page:"pretrip.html", title:"Pre-Trip", sub:"Daily truck inspection", icon:"truck", owed:c => !!(c && c.driver) },
-    { form:"Toolbox", page:"toolbox.html", title:"Toolbox meeting", sub:"Crew safety meeting record", icon:"users", owed:c => !!(c && c.fitter) }
+    { form:"FLHA", page:"flha.html", title:"FLHA", long:"FLHA", sub:"Field Level Hazard Assessment", icon:"shield", owed:() => true, why:"Everyone, every day" },
+    { form:"Pre-Trip", page:"pretrip.html", title:"Pre-Trip", long:"Pre-Trip inspection", sub:"Daily truck inspection", icon:"truck", owed:c => !!(c && c.driver), why:"You drive · about 4 min" },
+    { form:"Toolbox", page:"toolbox.html", title:"Toolbox", long:"Toolbox meeting", sub:"Crew safety meeting", icon:"users", owed:c => !!(c && c.fitter), why:"Fitter on site · about 6 min" }
   ];
-  const SHORT = { "FLHA":"FLHA", "Pre-Trip":"Pre-Trip", "Toolbox":"Toolbox" };
 
   const ICONS = {
-    home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/>',
-    shield:'<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8 7.5 9.5 4.3-1.5 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.8 12.2 2.2 2.2 4.4-4.6"/>',
-    ticket:'<path d="M4 6.5h16v3.2a2.3 2.3 0 0 0 0 4.6v3.2H4v-3.2a2.3 2.3 0 0 0 0-4.6Z"/><path d="M9.5 6.5v11" stroke-dasharray="1.6 2"/>',
-    cal:'<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
-    truck:'<path d="M3 7h10.5v9H3z"/><path d="M13.5 10.5h4l3 3.2V16h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
-    users:'<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.8 14.2c2.3.1 4 1.7 4.6 4.3"/>',
-    check:'<path d="m5 12.5 4.2 4.2L19 7"/>', x:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
-    book:'<path d="M5 4.5h10.5A3.5 3.5 0 0 1 19 8v11.5H8.5A3.5 3.5 0 0 1 5 16V4.5Z"/><path d="M5 16a3.5 3.5 0 0 1 3.5-3.5H19"/>',
-    trophy:'<path d="M8 4.5h8v4a4 4 0 0 1-8 0v-4Z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 12.5v4M8.5 20h7M9.5 16.5h5"/>'
+    home:'<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>',
+    shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
+    ticket:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+    clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    truck:'<rect x="2" y="7" width="13" height="10" rx="1.5"/><path d="M15 10h4l3 3v4h-7"/><circle cx="6.5" cy="18" r="1.8"/><circle cx="17.5" cy="18" r="1.8"/>',
+    users:'<circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M15 14.2c2.9-.4 6 1.3 6 4.8"/>',
+    check:'<path d="M5 12l5 5L20 7"/>', plus:'<path d="M12 5v14M5 12h14"/>',
+    chev:'<path d="M9 6l6 6-6 6"/>', left:'<path d="M15 6l-6 6 6 6"/>',
+    book:'<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>',
+    phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
+    crown:'<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
+    face:'<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9v1.5M15 9v1.5M12 9v4h-1"/><path d="M9 15.5c1.6 1.3 4.4 1.3 6 0"/>',
+    file:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>'
   };
-  const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`;
-  const paintIcons = root => root.querySelectorAll("[data-i]").forEach(el => { if (!el.firstChild) el.innerHTML = svg(el.dataset.i); });
+  const svg = (n, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.9}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`;
+  const paintIcons = root => root.querySelectorAll("[data-i]").forEach(el => { if (!el.querySelector("svg")) el.insertAdjacentHTML("afterbegin", svg(el.dataset.i, el.dataset.i === "check" ? 2.8 : 0)); });
   paintIcons(document);
 
   const $ = id => document.getElementById(id);
@@ -294,8 +496,11 @@
   const fmtH = n => (Math.round(n * 10) / 10).toString();
   const toast = t => { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2600); };
   const msg = (id, t, kind) => { $(id).textContent = t || ""; $(id).className = "msg" + (kind ? " " + kind : ""); };
+  const initials = n => String(n || "?").trim().split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const shortName = n => { const p = String(n || "").trim().split(/\s+/); return p.length > 1 ? p[0] + " " + p[1][0] + "." : p[0]; };
   const periodOf = d => d.getDate() <= 15 ? { s:new Date(d.getFullYear(), d.getMonth(), 1), e:new Date(d.getFullYear(), d.getMonth(), 15) }
                                            : { s:new Date(d.getFullYear(), d.getMonth(), 16), e:new Date(d.getFullYear(), d.getMonth() + 1, 0) };
+  const mdy = d => d.toLocaleDateString("en-CA", { month:"short", day:"numeric" });
 
   // service worker = installable app
   if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
@@ -306,8 +511,9 @@
 
   if (!window.supabase) { hideSplash(); $("login").hidden = false; msg("liMsg", "No connection. Check your signal and reopen MontneyPro.", "bad"); return; }
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
-  const S = { user:null, profile:null, admin:false, crew:null, roster:[], view:"home" };
+  const S = { user:null, profile:null, admin:false, crew:null, roster:[], view:"home", calMonth:null };
   const crewNameOf = p => p ? ((p.ticket_name || "").trim() || (p.full_name || "").trim().split(/\s+/)[0] || "").toLowerCase() : "";
+  const meName = () => S.crew ? S.crew.crew_name : crewNameOf(S.profile);
 
   // ---------- auth ----------
   // After 15 minutes of no use the app locks. Face ID / fingerprint unlocks it; without it, they sign in again.
@@ -336,8 +542,8 @@
     const name = (S.profile && S.profile.full_name) || "";
     $("lkTitle").textContent = "Welcome back" + (name ? ", " + name.split(/\s+/)[0] : "");
   }
-  $("lkGo").textContent = "Use " + BIO;
-  $("lkSub").textContent = "You were signed out after 15 minutes. Use " + BIO + " to get back in.";
+  $("lkGoText").textContent = "Unlock with " + BIO;
+  $("lkSub").textContent = "You were signed out after 15 minutes. " + (IOS ? "Look at your phone" : "Touch the sensor") + " to get back in.";
   $("lkGo").addEventListener("click", async () => {
     const id = bioFor(S.user.id);
     try {
@@ -429,99 +635,240 @@
   function paint() {
     const now = new Date(), name = (S.profile && S.profile.full_name) || (S.crew && S.crew.display_name) || S.user.email;
     const first = String(name).split(/\s+/)[0], h = now.getHours();
-    $("today").textContent = now.toLocaleDateString("en-CA", { weekday:"long", month:"long", day:"numeric" });
-    $("hello").textContent = (h < 12 ? "Morning, " : h < 17 ? "Afternoon, " : "Evening, ") + first;
-    $("avatar").textContent = String(name).split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    $("today").textContent = now.toLocaleDateString("en-CA", { weekday:"short" }) + " · " + now.toLocaleDateString("en-CA", { month:"long", day:"numeric" });
+    $("hello").textContent = (h < 12 ? "Morning, " : h < 17 ? "Afternoon, " : "Evening, ") + first + ".";
+    $("avatar").textContent = initials(name);
     $("shName").textContent = name; $("shMeta").textContent = (S.user.email || "") + (S.admin ? " · Office admin" : "");
-    renderSafetyList({}); renderQuick({});
+    $("tkToday").textContent = now.toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" });
+    renderTiles(new Set()); renderSafetyList(new Set());
     loadToday(); loadStats(); fillCrewNames(); setupTicket();
   }
 
   const owedFor = c => FORMS.filter(f => f.owed(c));
-  const chip = (f, ok, small) => `<span class="chip ${ok ? "y" : "n"}${small ? " sm" : ""}" ${small ? "" : `data-open="${f.page}"`}>${small ? "" : svg(ok ? "check" : "x")}${esc(SHORT[f.form])}${small ? (ok ? " ✓" : " ✗") : ""}</span>`;
 
   async function loadToday() {
     const today = iso(new Date());
-    const { data } = await sb.from("safety_forms").select("crew_name,form").eq("work_date", today);
-    const done = {};
-    (data || []).forEach(r => { (done[r.crew_name] = done[r.crew_name] || new Set()).add(r.form); });
+    const { data } = await sb.from("safety_forms").select("crew_name,form,created_at").eq("work_date", today);
+    const done = {}, at = {};
+    (data || []).forEach(r => { (done[r.crew_name] = done[r.crew_name] || new Set()).add(r.form); if (r.created_at) at[r.crew_name + "|" + r.form] = r.created_at; });
     const mine = S.crew ? (done[S.crew.crew_name] || new Set()) : new Set();
+    S.sentAt = k => at[(S.crew ? S.crew.crew_name : "") + "|" + k];
     if (S.crew) {
       const owed = owedFor(S.crew), left = owed.filter(f => !mine.has(f.form)).length;
-      $("todayTitle").textContent = left ? `${left} of ${owed.length} still to send today` : "All done for today. Nice work.";
-      $("todayChips").innerHTML = owed.map(f => chip(f, mine.has(f.form))).join("");
+      $("todaySub").textContent = !left ? "All forms in for today. Nice work." : left === owed.length ? (left === 1 ? "Your FLHA is due before you start." : `${left} forms to send before you start.`) : `${left === 1 ? "One form" : left + " forms"} left before you head out.`;
     } else {
-      $("todayTitle").textContent = S.admin ? "You're signed in as the office" : "Your name isn't on the crew list yet";
-      $("todayChips").innerHTML = S.admin ? "" : '<span style="color:var(--muted); font-size:14px">Ask the office to add you so your forms are tracked.</span>';
+      $("todaySub").textContent = S.admin ? "Here's how the crew is doing today." : "Your name isn't on the crew list yet. Ask the office to add you.";
     }
-    renderQuick(mine); renderSafetyList(mine);
-    if (S.admin) {
-      $("crewCard").hidden = false;
-      $("crewList").innerHTML = S.roster.length ? S.roster.map(c => {
-        const d = done[c.crew_name] || new Set();
-        return `<div class="row"><span class="nm">${esc(c.display_name)}</span><span class="chips">${owedFor(c).map(f => chip(f, d.has(f.form), true)).join("")}</span></div>`;
-      }).join("") : '<p class="empty">No crew set up yet.</p>';
-    }
+    renderTiles(mine); renderSafetyList(mine);
+    if (S.admin) renderCrew(done);
+    loadWeek();
   }
-  function renderQuick(mine) {
-    const forms = S.crew ? owedFor(S.crew) : FORMS;
-    $("quick").innerHTML = forms.map(f => `<a class="tile" href="${f.page}" data-open="${f.page}"><span class="ic">${svg(f.icon)}</span>${mine.has && mine.has(f.form) ? `<span class="done">${svg("check")}</span>` : ""}<span><b>${esc(f.title)}</b><br><small>${mine.has && mine.has(f.form) ? "Sent today" : "Tap to fill out"}</small></span></a>`).join("")
-      + `<button class="tile" type="button" data-go="ticket"><span class="ic">${svg("ticket")}</span><span><b>Field ticket</b><br><small>End of day hours</small></span></button>`;
+  const sentTime = f => { const t = S.sentAt && S.sentAt(f.form); return t ? new Date(t).toLocaleTimeString("en-CA", { hour:"numeric", minute:"2-digit" }).replace(/\s?([ap])\.?m\.?/i, (m, a) => " " + a.toUpperCase() + "M") : ""; };
+  function renderTiles(mine) {
+    const forms = S.crew ? owedFor(S.crew) : [];
+    $("tiles").hidden = !forms.length;
+    $("tiles").className = "tiles" + (forms.length === 2 ? " two" : forms.length === 1 ? " one" : "");
+    $("tiles").innerHTML = forms.map(f => {
+      const ok = mine.has(f.form), t = sentTime(f);
+      return `<a class="ftile${ok ? " done" : ""}" href="${f.page}" data-open="${f.page}">${ok ? svg("check", 2.6) : svg(f.icon)}<span><b>${esc(f.title)}</b><small>${ok ? (t ? "Sent " + esc(t.replace(/ [AP]M$/, "")) : "Sent") : "Start"}</small></span></a>`;
+    }).join("");
   }
   function renderSafetyList(mine) {
     $("formList").innerHTML = FORMS.map(f => {
-      const owes = !S.crew || f.owed(S.crew), sent = mine.has && mine.has(f.form);
-      return `<a href="${f.page}" data-open="${f.page}"><span class="ic">${svg(f.icon)}</span><span><b>${esc(f.title)}</b><small>${esc(f.sub)}${S.crew && !owes ? " · not required for you" : ""}</small></span>
-        <span class="st">${S.crew && owes ? `<span class="chip sm ${sent ? "y" : "n"}">${sent ? "Sent ✓" : "Due ✗"}</span>` : ""}</span></a>`;
+      const owes = !S.crew || f.owed(S.crew), sent = mine.has(f.form), t = sentTime(f);
+      const cls = sent ? "sent" : (S.crew && !owes) ? "na" : "due";
+      const sub = sent ? "Sent" + (t ? " " + t : "") : (S.crew && !owes) ? "Not required for you" : (S.crew ? f.why : f.sub);
+      return `<a class="fcard ${cls}" href="${f.page}" data-open="${f.page}"><span class="ic">${sent ? svg("check", 2.6) : svg(f.icon)}</span><span class="t"><b>${esc(f.long)}</b><small>${esc(sub)}</small></span><span class="go">${sent ? "Done" : svg("chev", 2.2)}</span></a>`;
     }).join("");
+  }
+  async function loadWeek() {
+    const me = meName();
+    if (!S.crew) { $("weekWrap").hidden = true; return; }
+    $("weekWrap").hidden = false;
+    const end = new Date(), start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6);
+    const [f, h] = await Promise.all([
+      sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end)),
+      sb.from("hours").select("work_date,hours,shop_hours").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end))
+    ]);
+    const sent = {}, worked = {};
+    (f.data || []).forEach(r => (sent[r.work_date] = sent[r.work_date] || new Set()).add(r.form));
+    (h.data || []).forEach(r => { if ((Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0) worked[r.work_date] = true; });
+    const owed = owedFor(S.crew).map(x => x.form);
+    let html = "";
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i), k = iso(d), s = sent[k] || new Set();
+      const isToday = i === 6, label = isToday ? "Today" : d.toLocaleDateString("en-CA", { weekday:"short" });
+      let cell;
+      if (isToday) cell = `<div class="c today"><b>${d.getDate()}</b><em>${owed.filter(x => s.has(x)).length}/${owed.length}</em></div>`;
+      else if (worked[k] || s.size) cell = `<div class="c"><b>${d.getDate()}</b><i style="background:${owed.every(x => s.has(x)) ? "var(--ok)" : "var(--bad)"}"></i></div>`;
+      else cell = `<div class="c off"><b>${d.getDate()}</b><em>OFF</em></div>`;
+      html += `<div><div class="d${isToday ? " today-l" : ""}">${label}</div>${cell}</div>`;
+    }
+    $("week").innerHTML = html;
   }
 
   async function loadStats() {
-    const p = periodOf(new Date()), s = iso(p.s), e = iso(p.e), me = S.crew ? S.crew.crew_name : crewNameOf(S.profile);
+    const p = periodOf(new Date()), s = iso(p.s), e = iso(p.e), me = meName();
+    $("boardRange").textContent = mdy(p.s) + " – " + p.e.getDate();
     const [hrs, lb] = await Promise.all([
       me ? sb.from("hours").select("work_date,hours,shop_hours").eq("crew_name", me).gte("work_date", s).lte("work_date", e) : Promise.resolve({ data:[] }),
       sb.rpc("flha_leaderboard", { p_start:s, p_end:e })
     ]);
-    const total = (hrs.data || []).reduce((a, r) => a + (Number(r.hours) || 0) + (Number(r.shop_hours) || 0), 0);
-    $("sHours").textContent = fmtH(total);
+    const rowsH = hrs.data || [];
+    const bill = rowsH.reduce((a, r) => a + (Number(r.hours) || 0), 0), shop = rowsH.reduce((a, r) => a + (Number(r.shop_hours) || 0), 0);
+    const days = new Set(rowsH.filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0).map(r => r.work_date)).size;
+    $("sHours").textContent = S.crew ? fmtH(bill + shop) : "-";
+    $("pTotal").textContent = fmtH(bill + shop); $("pBill").textContent = fmtH(bill); $("pShop").textContent = fmtH(shop); $("pDays").textContent = days;
+    $("payTitle").textContent = mdy(p.s) + " – " + p.e.getDate();
     const rows = (lb.data || []).map(r => ({ ...r, pct:r.worked_days ? r.flha_days / r.worked_days : -1 }))
       .sort((a, b) => b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
     let rank = 0;
     const ranked = rows.map(r => ({ ...r, rank:r.worked_days ? ++rank : null }));
     const mine = ranked.find(r => r.crew_name === me);
-    $("sFlha").textContent = mine && mine.worked_days ? `${mine.flha_days}/${mine.worked_days}` : "-";
-    $("sRank").textContent = mine && mine.rank ? "#" + mine.rank : "-";
-    $("board").innerHTML = ranked.length ? ranked.map(r => {
-      const perfect = r.worked_days && r.flha_days === r.worked_days;
-      return `<div class="row"><span class="nm" style="${r.crew_name === me ? "color:var(--amber)" : ""}">${r.rank ? r.rank + ". " : ""}${perfect ? "🏆 " : ""}${esc(r.display_name)}</span>
-        <span style="font-weight:700; font-variant-numeric:tabular-nums; color:${perfect ? "var(--ok)" : "var(--muted)"}">${r.worked_days ? r.flha_days + " / " + r.worked_days : "No days yet"}</span></div>`;
+    const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
+    $("sRank").textContent = mine && mine.rank ? ord(mine.rank) : "-";
+    $("sFlha").textContent = mine && mine.worked_days ? `${mine.flha_days}/${mine.worked_days}` : "";
+    const top = ranked.filter(r => r.rank).slice(0, 3), rest = ranked.filter(r => !top.includes(r));
+    const pod = (r, place) => r ? `<div class="pod p${place}">${place === 1 ? svg("crown") : ""}<span class="av">${esc(initials(r.display_name))}</span><b>${esc(shortName(r.display_name))}</b><small>${ord(place)} · ${r.flha_days}/${r.worked_days}</small></div>` : `<div></div>`;
+    $("podium").hidden = !top.length;
+    $("podium").innerHTML = top.length ? pod(top[1], 2) + pod(top[0], 1) + pod(top[2], 3) : "";
+    $("board").innerHTML = ranked.length ? rest.map(r => {
+      const pct = r.worked_days ? Math.round(100 * r.flha_days / r.worked_days) : 0;
+      return `<div class="lrow${r.crew_name === me ? " me" : ""}"><span class="rk">${r.rank || "–"}</span><span class="nm">${esc(r.display_name)}</span><span class="bar"><i style="width:${pct}%"></i></span><span class="sc">${r.worked_days ? r.flha_days + "/" + r.worked_days : "–"}</span></div>`;
     }).join("") : '<p class="empty">No days worked yet this pay period.</p>';
   }
 
+  // ---------- crew today (admin) ----------
+  function renderCrew(done) {
+    const late = [], good = [];
+    S.roster.forEach(c => {
+      const d = done[c.crew_name] || new Set(), owed = owedFor(c);
+      (owed.every(f => d.has(f.form)) ? good : late).push({ c, d, owed });
+    });
+    const pills = x => x.owed.map(f => `<span class="pill ${x.d.has(f.form) ? "y" : "n"}">${x.d.has(f.form) ? "✓" : "✗"} ${esc(f.title)}</span>`).join("");
+    $("crewCard").hidden = false;
+    $("crewCounts").innerHTML = `<span style="color:var(--ok2)">${good.length} all in</span><span style="color:var(--bad2)">${late.length} missing</span>`;
+    $("cIn").textContent = good.length; $("cOut").textContent = late.length;
+    $("crewDate").textContent = "Admin · " + new Date().toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" });
+    $("lateHead").hidden = !late.length;
+    $("lateList").innerHTML = late.map(x => `<div class="crow card"><span class="av">${esc(initials(x.c.display_name))}</span><span class="t"><b>${esc(x.c.display_name)}</b><span class="pills">${pills(x)}</span></span></div>`).join("");
+    $("goodList").innerHTML = good.length ? good.map(x => `<div class="crow"><span class="av">${esc(initials(x.c.display_name))}</span><span class="t"><b style="font-weight:700">${esc(x.c.display_name)}</b><span class="pills">${pills(x)}</span></span></div>`).join("") : '<p class="empty">Nobody yet today.</p>';
+  }
+
+  // ---------- hours ----------
+  async function loadHours() {
+    const me = meName(), now = new Date();
+    if (!S.calMonth) S.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const m = S.calMonth, first = iso(m), last = iso(new Date(m.getFullYear(), m.getMonth() + 1, 0));
+    $("calTitle").textContent = m.toLocaleDateString("en-CA", { month:"long", year:m.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
+    const [h, f] = await Promise.all([
+      me ? sb.from("hours").select("work_date,hours,shop_hours").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] }),
+      me ? sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] })
+    ]);
+    const hrs = {}, sent = {};
+    (h.data || []).forEach(r => hrs[r.work_date] = (hrs[r.work_date] || 0) + (Number(r.hours) || 0) + (Number(r.shop_hours) || 0));
+    (f.data || []).forEach(r => (sent[r.work_date] = sent[r.work_date] || new Set()).add(r.form));
+    const owed = S.crew ? owedFor(S.crew).map(x => x.form) : ["FLHA"];
+    const lead = (m.getDay() + 6) % 7, days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate(), todayK = iso(now);
+    const pays = new Set(paydaysIn(m.getFullYear(), m.getMonth()));
+    const np = nextPayInfo(); $("nCut").textContent = np.cut; $("nPay").textContent = np.pay;
+    let html = "";
+    for (let i = 0; i < lead; i++) html += "<div></div>";
+    for (let d = 1; d <= days; d++) {
+      const k = iso(new Date(m.getFullYear(), m.getMonth(), d)), v = hrs[k], s = sent[k] || new Set();
+      const cls = (k === todayK ? "t" : v ? "w" : k > todayK ? "f" : "") + (pays.has(k) ? " pay" : "") + (isCutoff(new Date(m.getFullYear(), m.getMonth(), d)) ? " cut" : "");
+      const dot = v ? `<i style="background:${owed.every(x => s.has(x)) ? "var(--ok)" : "var(--bad)"}"></i>` : "<i></i>";
+      html += `<div class="${cls}"${pays.has(k) ? ' title="Payday"' : ""}><span class="n">${d}</span><span class="h">${v ? fmtH(v) : k === todayK ? "today" : ""}</span>${dot}</div>`;
+    }
+    $("cal").innerHTML = html;
+    loadDocs();
+  }
+  $("calPrev").addEventListener("click", () => { S.calMonth = new Date(S.calMonth.getFullYear(), S.calMonth.getMonth() - 1, 1); loadHours(); });
+  $("calNext").addEventListener("click", () => { S.calMonth = new Date(S.calMonth.getFullYear(), S.calMonth.getMonth() + 1, 1); loadHours(); });
+
+  // Pay schedule: cut-offs on the 15th and last day of the month. Paydays on the 1st and 15th,
+  // moved to the business day before when that lands on a weekend or a bank holiday (Alberta).
+  const nthMon = (y, m, n) => { const d = new Date(y, m, 1); d.setDate(1 + ((8 - d.getDay()) % 7) + (n - 1) * 7); return d; };
+  const easter = y => { const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3),
+    h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451),
+    mo = Math.floor((h + l - 7 * m + 114) / 31), da = ((h + l - 7 * m + 114) % 31) + 1; return new Date(y, mo - 1, da); };
+  const holidayCache = {};
+  const holidays = y => holidayCache[y] || (holidayCache[y] = (() => {
+    const gf = easter(y); gf.setDate(gf.getDate() - 2);
+    const vic = new Date(y, 4, 24); vic.setDate(24 - ((vic.getDay() + 6) % 7));
+    return new Set([new Date(y, 0, 1), nthMon(y, 1, 3), gf, vic, new Date(y, 6, 1), nthMon(y, 7, 1), nthMon(y, 8, 1), new Date(y, 8, 30),
+      nthMon(y, 9, 2), new Date(y, 10, 11), new Date(y, 11, 25), new Date(y, 11, 26)].map(iso));
+  })());
+  const businessDay = d => { const x = new Date(d); while (x.getDay() === 0 || x.getDay() === 6 || holidays(x.getFullYear()).has(iso(x))) x.setDate(x.getDate() - 1); return x; };
+  const paydaysIn = (y, m) => [businessDay(new Date(y, m, 1)), businessDay(new Date(y, m, 15)), businessDay(new Date(y, m + 1, 1))].filter(d => d.getMonth() === ((m % 12) + 12) % 12 && d.getFullYear() === new Date(y, m, 1).getFullYear()).map(iso);
+  const isCutoff = d => d.getDate() === 15 || d.getDate() === new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  function nextPayInfo() {
+    const t = new Date(), today = iso(t);
+    let cut = new Date(t.getFullYear(), t.getMonth(), t.getDate() <= 15 ? 15 : new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate());
+    let pay = null;
+    for (let i = 0; i < 3 && !pay; i++) pay = paydaysIn(t.getFullYear(), t.getMonth() + i).find(k => k >= today) || null;
+    const wk = k => new Date(k + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" });
+    return { cut:iso(cut) === today ? "Today" : wk(iso(cut)), pay:pay === today ? "Today" : wk(pay) };
+  }
+
+  const docStatus = d => {
+    if (!d) return { cls:"none", label:"No expiry" };
+    const left = Math.round((new Date(d + "T00:00:00") - new Date(iso(new Date()) + "T00:00:00")) / 86400000);
+    if (left < 0) return { cls:"bad", label:"Expired" };
+    if (left <= 60) return { cls:"warn", label:"Expires in " + left + "d" };
+    return { cls:"ok", label:"Valid" };
+  };
+  async function loadDocs() {
+    const { data } = await sb.from("documents").select("id,title,doc_type,expiry_date,file_path,uploaded_at").eq("employee_id", S.user.id).order("uploaded_at", { ascending:false });
+    const docs = data || [];
+    $("docs").innerHTML = docs.length ? docs.map(d => { const st = docStatus(d.expiry_date); return `<button class="line" type="button" data-doc="${esc(d.file_path)}"><span class="docic">${svg("file")}</span><span class="t">${esc(d.title)}<small>${esc((d.doc_type || "").replace(/^./, c => c.toUpperCase()))}${d.expiry_date ? " · expires " + esc(d.expiry_date) : ""}</small></span><span class="tag ${st.cls}">${st.label}</span></button>`; }).join("")
+      : '<p class="empty">No documents yet. Add your tickets and certificates so the office has them.</p>';
+  }
+  $("docs").addEventListener("click", async e => {
+    const b = e.target.closest("[data-doc]"); if (!b) return;
+    const win = window.open("", "_blank");
+    const { data, error } = await sb.storage.from(DOC_BUCKET).createSignedUrl(b.dataset.doc, 120);
+    if (error || !data) { if (win) win.close(); toast("Couldn't open that file"); return; }
+    if (win) win.location = data.signedUrl; else location.href = data.signedUrl;
+  });
+
   // ---------- navigation ----------
+  const TAB_OF = { home:"home", crew:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours" };
   function go(v) {
     S.view = v;
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
-    document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === v));
-    if (v === "hours" && !$("portalFrame").src) $("portalFrame").src = "../portal.html?embed=1";
+    document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === TAB_OF[v]));
+    if (v === "portal" && !$("portalFrame").src) $("portalFrame").src = "../portal.html?embed=1";
     $("portalFrame").onload = () => { try { ["touchstart","click","keydown","scroll"].forEach(ev => $("portalFrame").contentWindow.addEventListener(ev, touch, { passive:true, capture:true })); } catch (e) {} };
-    if (v === "home" && S.user) { loadToday(); loadStats(); }
+    if ((v === "home" || v === "safety" || v === "crew") && S.user) { loadToday(); if (v === "home") loadStats(); }
+    if (v === "hours" && S.user) { loadHours(); loadStats(); }
+    if (v === "ticket" && S.user && !$("tkDone").hidden) { /* keep the done screen until they leave */ }
     $("v-" + v).scrollTop = 0;
   }
-  document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.v)));
+  document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => { if (b.dataset.v === "ticket" && !$("tkDone").hidden) showTicketForm(); go(b.dataset.v); }));
   document.addEventListener("click", e => {
     const t = e.target.closest("[data-go]"); if (t) { e.preventDefault(); go(t.dataset.go); return; }
     const o = e.target.closest("[data-open]");
     if (o) { e.preventDefault(); if (S.crew) store("montney_me", S.crew.display_name); location.href = o.dataset.open; }
   });
-  document.addEventListener("visibilitychange", () => { if (!document.hidden && S.user && S.view === "home") { loadToday(); loadStats(); } });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && S.user && (S.view === "home" || S.view === "safety")) { loadToday(); loadStats(); } });
   addEventListener("pageshow", e => { if (e.persisted && S.user) { loadToday(); loadStats(); } });
 
   const openSheet = () => { $("scrim").classList.add("on"); $("sheet").classList.add("on"); };
   const closeSheet = () => { $("scrim").classList.remove("on"); $("sheet").classList.remove("on"); };
-  $("avatar").addEventListener("click", openSheet); $("scrim").addEventListener("click", closeSheet);
+  $("avatar").addEventListener("click", openSheet); $("scrim").addEventListener("click", () => { closeSheet(); closeBio(); });
 
   // ---------- field tickets (same Google Sheet as the website) ----------
+  $("trucks").innerHTML = TRUCKS.map(t => `<button type="button" aria-pressed="false" data-truck="${esc(t)}">${t === "Skid steer" ? "Skid" : esc(t)}</button>`).join("");
+  const setTruck = t => { $("tk-truck").value = t || ""; document.querySelectorAll("[data-truck]").forEach(b => b.setAttribute("aria-pressed", b.dataset.truck === t)); };
+  $("trucks").addEventListener("click", e => { const b = e.target.closest("[data-truck]"); if (b) setTruck(b.dataset.truck); });
+  const zeroCls = () => ["tk-hours", "tk-shop"].forEach(id => $(id).classList.toggle("zero", !(Number($(id).value) > 0)));
+  document.querySelectorAll("[data-step]").forEach(b => b.addEventListener("click", () => {
+    const el = $(b.dataset.step), v = Math.min(24, Math.max(0, (Number(el.value) || 0) + Number(b.dataset.d)));
+    el.value = v ? v : ""; zeroCls();
+  }));
+  ["tk-hours", "tk-shop"].forEach(id => $(id).addEventListener("input", zeroCls));
+
   function fillCrewNames() {
     const names = S.roster.map(c => c.display_name);   // full names; the sheet matches on first name
     $("crewNames").innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join("");
@@ -532,8 +879,10 @@
     $("tkGate").hidden = true; $("tkDone").hidden = true; $("tkForm").hidden = false;
     if (!$("tk-date").value) $("tk-date").value = iso(new Date());
     const last = store("mp_tk_last") || {};
-    ["truck", "client", "job", "supervisor", "location", "fitter", "helper"].forEach(k => { if (last[k] && !$("tk-" + k).value) $("tk-" + k).value = last[k]; });
+    ["client", "job", "supervisor", "location", "fitter", "helper"].forEach(k => { if (last[k] && !$("tk-" + k).value) $("tk-" + k).value = last[k]; });
+    if (!$("tk-truck").value && last.truck) setTruck(last.truck);
     if (!$("tk-fitter").value && S.crew && S.crew.fitter) $("tk-fitter").value = S.crew.display_name;
+    zeroCls();
   }
   function setupTicket() {
     tkCode = store("mp_tk_code") || "";
@@ -551,6 +900,7 @@
     const v = id => $("tk-" + id).value.trim();
     const d = { pin:tkCode, date:v("date"), hours:v("hours"), truck:v("truck"), client:v("client"), job:v("job"), supervisor:v("supervisor"), location:v("location"),
                 fitter:v("fitter"), helper:v("helper"), scope:v("scope"), shop:v("shop"), sub:$("tk-sub").checked ? "Yes" : "" };
+    if (!d.truck) { msg("tkMsg", "Tap your truck number at the top.", "bad"); return; }
     if (!(Number(d.hours) > 0) && !(Number(d.shop) > 0)) { msg("tkMsg", "Enter billable hours, shop hours, or both.", "bad"); return; }
     if (Number(d.hours) > 0 && (!d.client || d.client === "Shop")) { msg("tkMsg", "Pick the client for the billable hours.", "bad"); return; }
     if (!(Number(d.hours) > 0)) { d.hours = 0; if (!d.client) d.client = "Shop"; }
@@ -560,9 +910,13 @@
       btn.disabled = false; btn.textContent = "Submit field ticket";
       if (j.error === "code") { store("mp_tk_code", ""); tkCode = ""; $("tkForm").hidden = true; $("tkGate").hidden = false; msg("tkGateMsg", "The crew code changed. Enter the new one.", "bad"); return; }
       if (!j.saved) { msg("tkMsg", "Not saved. Try again.", "bad"); return; }
-      $("tkDoneMsg").textContent = j.ok ? `${d.hours || d.shop} hours on ${d.date} added to the ${j.tab || d.truck} tab.` : "Saved, but it couldn't be put on your truck's tab. Tell the office so they can move it.";
-      $("tkForm").hidden = true; $("tkDone").hidden = false;
-      ["hours", "shop", "scope"].forEach(k => $("tk-" + k).value = ""); $("tk-sub").checked = false;
+      $("tkDoneMsg").textContent = j.ok ? `Added to the ${j.tab || d.truck} tab. Your hours show on your calendar within the hour.` : "Saved, but it couldn't be put on your truck's tab. Tell the office so they can move it.";
+      const crewTxt = [d.fitter, d.helper && d.helper !== "No helper" ? d.helper : ""].filter(Boolean).map(shortName).join(" + ");
+      const hrsTxt = [Number(d.hours) > 0 ? d.hours + " billable" : "", Number(d.shop) > 0 ? d.shop + " shop" : ""].filter(Boolean).join(" · ");
+      $("tkSummary").innerHTML = [["Truck", d.truck], ["Client", d.client + (d.job ? " · Job " + d.job : "")], ["Crew", crewTxt], ["Hours", hrsTxt]]
+        .map(([k, val]) => `<div><span>${k}</span><b${k === "Hours" ? ' style="color:var(--gold)"' : ""}>${esc(val)}</b></div>`).join("");
+      $("tkForm").hidden = true; $("tkDone").hidden = false; $("v-ticket").scrollTop = 0;
+      ["hours", "shop", "scope"].forEach(k => $("tk-" + k).value = ""); $("tk-sub").checked = false; zeroCls();
       toast("Field ticket sent");
     }).catch(() => { btn.disabled = false; btn.textContent = "Submit field ticket"; msg("tkMsg", "Not sent. Your ticket is still filled in. Tap submit again when you have signal.", "bad"); });
   });
