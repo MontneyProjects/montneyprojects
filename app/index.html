@@ -247,11 +247,11 @@
   .cal .f .n { color:var(--faint); }
   .cal div { position:relative; }
   .cal .pay::after { content:"$"; position:absolute; top:3px; right:3px; min-width:14px; height:14px; border-radius:7px; background:var(--gold); color:var(--bg); font-size:9px; font-weight:800; line-height:14px; text-align:center; }
-  .cal .cut::before { content:""; position:absolute; top:8px; bottom:8px; right:-3px; width:2px; border-radius:1px; background:var(--bad); }
+  .cal .cut::before { content:""; position:absolute; top:3px; left:3px; width:14px; height:14px; border-radius:7px; background:var(--bad) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23120b07' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12'/%3E%3C/svg%3E") center/9px no-repeat; }
   .paynext { margin-top:16px; padding-top:14px; border-top:1px solid rgba(227,184,115,.25); display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
   .paynext b { display:block; font-size:16px; font-weight:800; } .paynext span { font-size:12px; color:var(--soft); font-weight:600; }
   .legend .sq { width:14px; height:14px; border-radius:7px; background:var(--gold); color:var(--bg); font-size:9px; font-weight:800; display:grid; place-items:center; font-style:normal; }
-  .legend .ln { width:2px; height:12px; border-radius:1px; background:var(--bad); }
+  .legend .ln { width:14px; height:14px; border-radius:7px; background:var(--bad) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23120b07' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12'/%3E%3C/svg%3E") center/9px no-repeat; }
 
   /* crew today (admin) */
   .counts { margin-top:20px; display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; }
@@ -412,7 +412,7 @@
     <div class="monthbar"><h2 id="calTitle"></h2><div class="arrows"><button class="round" type="button" id="calPrev" aria-label="Last month" data-i="left"></button><button class="round" type="button" id="calNext" aria-label="Next month" data-i="chev"></button></div></div>
     <div class="dow"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
     <div class="cal" id="cal"></div>
-    <div class="legend" style="flex-wrap:wrap; row-gap:8px"><span><i style="background:var(--ok)"></i>Forms sent</span><span><i style="background:var(--bad)"></i>Form missed</span><span><em class="sq">$</em>Payday</span><span><em class="ln"></em>Cut-off</span></div>
+    <div class="legend" style="flex-wrap:wrap; row-gap:8px"><span><i style="background:var(--ok)"></i>Forms sent</span><span><i style="background:var(--bad)"></i>Form missed</span><span><em class="sq">$</em>Payday</span><span><em class="ln"></em>Cut-off (period ends)</span></div>
     <h2 class="section">Documents</h2>
     <div class="lines" id="docs"><p class="empty">Loading...</p></div>
     <button class="btn ghost" type="button" data-go="portal" style="margin-top:16px">Upload or manage documents</button>
@@ -778,7 +778,7 @@
       const k = iso(new Date(m.getFullYear(), m.getMonth(), d)), v = hrs[k], s = sent[k] || new Set();
       const cls = (k === todayK ? "t" : v ? "w" : k > todayK ? "f" : "") + (pays.has(k) ? " pay" : "") + (isCutoff(new Date(m.getFullYear(), m.getMonth(), d)) ? " cut" : "");
       const dot = v ? `<i style="background:${owed.every(x => s.has(x)) ? "var(--ok)" : "var(--bad)"}"></i>` : "<i></i>";
-      html += `<div class="${cls}"${pays.has(k) ? ' title="Payday"' : ""}><span class="n">${d}</span><span class="h">${v ? fmtH(v) : k === todayK ? "today" : ""}</span>${dot}</div>`;
+      html += `<div class="${cls}"${pays.has(k) ? ` title="Payday${new Date(k + "T00:00:00").getDate() % 14 === 1 ? "" : " (moved up for the weekend or holiday)"}"` : ""}><span class="n">${d}</span><span class="h">${v ? fmtH(v) : k === todayK ? "today" : ""}</span>${dot}</div>`;
     }
     $("cal").innerHTML = html;
     loadDocs();
