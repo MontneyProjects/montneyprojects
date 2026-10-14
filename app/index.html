@@ -485,6 +485,9 @@
     <button class="crewcard" id="dispCard" type="button" data-go="dispatch" hidden>
       <span><span class="label">Dispatch</span><span class="n" id="dispCounts">Send orders to the crew</span></span><span data-i="chev"></span>
     </button>
+    <button class="crewcard" id="expCard" type="button" data-go="exp" hidden>
+      <span><span class="label">Receipts → QuickBooks</span><span class="n" id="expCounts">Snap a company receipt</span></span><span data-i="chev"></span>
+    </button>
     <button class="crewcard" id="fuelCard" type="button" data-go="fuel" hidden>
       <span><span class="label">Fuel</span><span class="n" id="fuelCounts">Fuel by truck</span></span><span data-i="chev"></span>
     </button>
@@ -656,6 +659,29 @@
     </form>
     <h2 class="section" id="fHistHead">Recent fill-ups</h2>
     <div id="fList"><p class="empty">Loading...</p></div>
+  </section>
+
+  <section class="view" id="v-exp" hidden>
+    <div class="pagehead"><div><div class="eyebrow">Bookkeeping</div><h1 class="h1">Company receipts</h1></div><button class="back" type="button" data-go="home" aria-label="Back" data-i="left"></button></div>
+    <p style="margin:10px 0 0; color:var(--soft); font-size:14px">Snap it, check it, save it. Every night it goes into QuickBooks as an expense with the receipt attached.</p>
+    <button class="shot" type="button" id="eShot"><span data-i="camera"></span>Snap or upload a receipt<small>Photo or PDF</small></button>
+    <input type="file" id="eFile" accept="image/*,application/pdf" hidden>
+    <div class="reading" id="eReading" hidden><i></i><span>Reading the receipt...</span></div>
+    <form id="expForm" autocomplete="off">
+      <div class="group" style="margin-top:16px">
+        <label><span>Vendor</span><input id="eVendor" placeholder="Who you paid"></label>
+        <label><span>Date</span><input type="date" id="eDate" required></label>
+        <label><span>Total $</span><input id="eTotal" inputmode="decimal" placeholder="0.00" required></label>
+        <label><span>GST</span><input id="eGst" inputmode="decimal" placeholder="0.00"></label>
+        <label><span>Category</span><select id="eCat"></select></label>
+        <label><span>Paid personally</span><span class="switch"><input type="checkbox" id="ePersonal" aria-label="Paid personally"><i></i></span></label>
+        <label><span>Note</span><input id="eNote" placeholder="Optional, e.g. truck 005 tires"></label>
+      </div>
+      <button class="btn" id="eSave" style="margin-top:18px">Save receipt</button>
+      <p class="msg" id="eMsg" aria-live="polite"></p>
+    </form>
+    <h2 class="section">Recent</h2>
+    <div id="eList"><p class="empty">Loading...</p></div>
   </section>
 
   <section class="view" id="v-defects" hidden>
@@ -938,7 +964,7 @@
       $("todaySub").textContent = S.admin ? "Here's how the crew is doing today." : "Your name isn't on the crew list yet. Ask the office to add you.";
     }
     renderTiles(mine); renderSafetyList(mine);
-    if (S.admin) { renderCrew(done); loadDefects(true); $("dispCard").hidden = false; $("fuelCard").hidden = false; loadFuel(true); }
+    if (S.admin) { renderCrew(done); loadDefects(true); $("dispCard").hidden = false; $("fuelCard").hidden = false; loadFuel(true); $("expCard").hidden = false; loadExp(true); }
     loadOrders();
     loadWeek();
   }
@@ -1260,6 +1286,72 @@
   }
   $("fList").addEventListener("click", e => { const big = e.target.closest("[data-big]"); if (!big) return; const dv = document.createElement("div"); dv.className = "viewer"; dv.innerHTML = `<img src="${esc(big.dataset.big)}" alt=""><button type="button" aria-label="Close">×</button>`; dv.addEventListener("click", () => dv.remove()); document.body.appendChild(dv); });
 
+
+  // ---------- company receipts -> QuickBooks (admin) ----------
+  const CATS = ["Fuel and Vehicle", "Repair and maintenance", "Job Materials", "Supplies", "Tools", "Travel", "Travel meals", "Meals and entertainment", "Office expenses", "Utilities", "Insurance", "Rent or lease payments", "Dues and Subscriptions", "Legal and professional fees", "Taxes and Licenses", "Advertising", "Bank charges", "Subcontractors", "Uncategorized Expense"];
+  $("eCat").innerHTML = CATS.map(c => `<option>${esc(c)}</option>`).join("");
+  const guessCat = v => { const x = (v || "").toLowerCase();
+    if (/cardlock|petro|esso|shell|husky|co-?op|fas ?gas|chevron|mobil|fuel|gas bar|pioneer|domo|centex|ufa/.test(x)) return "Fuel and Vehicle";
+    if (/napa|princess auto|kal tire|fountain tire|ok tire|lordco|carquest|parts|tire|mechanic|auto ?body|repair/.test(x)) return "Repair and maintenance";
+    if (/home depot|rona|lowe|canadian tire|peavey|ufa|supply|hardware|fastenal|grainger/.test(x)) return "Supplies";
+    if (/hotel|inn|motel|suites|lodge|airbnb|westjet|air canada|flair/.test(x)) return "Travel";
+    if (/restaurant|tim hortons|a&w|mcdonald|subway|boston pizza|denny|cafe|grill|pizza|starbucks|dairy queen/.test(x)) return "Travel meals";
+    if (/telus|rogers|bell|shaw|atco|direct energy|enmax|epcor|fortis/.test(x)) return "Utilities";
+    if (/staples|office/.test(x)) return "Office expenses";
+    return ""; };
+  const E = { file:null, type:"" };
+  function openExp() { if (!$("eDate").value) $("eDate").value = iso(new Date()); loadExp(); }
+  $("eShot").addEventListener("click", () => $("eFile").click());
+  $("eVendor").addEventListener("change", () => { const g = guessCat($("eVendor").value); if (g) $("eCat").value = g; });
+  $("eFile").addEventListener("change", async () => {
+    const file = $("eFile").files[0]; $("eFile").value = ""; if (!file) return;
+    msg("eMsg", "");
+    if (file.type === "application/pdf") { E.file = file; E.type = "application/pdf"; $("eShot").innerHTML = `${svg("file")}${esc(file.name)}<small>PDF attached. Fill in the numbers below.</small>`; return; }
+    let prep; try { prep = await prepImage(file); } catch (e) { prep = { upload:file, ocr:null }; }
+    E.file = prep.upload; E.type = "image/jpeg";
+    $("eShot").innerHTML = `<img src="${URL.createObjectURL(prep.upload)}" alt="Receipt">`;
+    $("eReading").hidden = false;
+    try {
+      const T = await loadTess(); const r = await T.recognize(prep.ocr || prep.upload, "eng"); const p = parseReceipt(r.data.text || "");
+      if (p.date) $("eDate").value = p.date;
+      if (p.station && !$("eVendor").value) $("eVendor").value = p.station;
+      if (p.total) $("eTotal").value = p.total.toFixed(2);
+      if (p.gst) $("eGst").value = p.gst.toFixed(2);
+      const g = guessCat($("eVendor").value + " " + (r.data.text || "").slice(0, 200)); if (g) $("eCat").value = g;
+      msg("eMsg", p.total ? "Check the numbers, then save." : "Couldn't read the total. Type it in from the receipt.", p.total ? "ok" : "bad");
+    } catch (e) { msg("eMsg", "Couldn't read it. Type the numbers in.", "bad"); }
+    $("eReading").hidden = true;
+  });
+  $("expForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const total = num($("eTotal").value); if (!(total > 0)) { msg("eMsg", "Enter the total.", "bad"); return; }
+    if (!E.file && !confirm("Save without a receipt photo?")) return;
+    $("eSave").disabled = true; msg("eMsg", "Saving...");
+    let path = null;
+    if (E.file) {
+      path = `${$("eDate").value.slice(0, 7)}/${$("eDate").value}-${crypto.randomUUID().slice(0, 8)}.${E.type === "application/pdf" ? "pdf" : "jpg"}`;
+      const up = await sb.storage.from("expense-receipts").upload(path, E.file, { contentType:E.type });
+      if (up.error) { $("eSave").disabled = false; msg("eMsg", "The photo didn't upload. Check your signal and try again.", "bad"); return; }
+    }
+    const row = { exp_date:$("eDate").value, vendor:$("eVendor").value.trim() || null, total, gst:num($("eGst").value), category:$("eCat").value, paid_personally:$("ePersonal").checked, notes:$("eNote").value.trim() || null, receipt_path:path };
+    const { error } = await sb.from("expenses").insert(row);
+    $("eSave").disabled = false;
+    if (error) { msg("eMsg", "Didn't save. Try again.", "bad"); return; }
+    toast("Receipt saved 🧾"); msg("eMsg", "Saved. It goes into QuickBooks tonight.", "ok");
+    E.file = null; ["eVendor", "eTotal", "eGst", "eNote"].forEach(id => $(id).value = ""); $("ePersonal").checked = false;
+    $("eShot").innerHTML = `${svg("camera")}Snap or upload a receipt<small>Photo or PDF</small>`;
+    loadExp();
+  });
+  async function loadExp(countOnly) {
+    if (!S.admin) return;
+    const { data } = await sb.from("expenses").select("*").order("created_at", { ascending:false }).limit(60);
+    const rows = data || [], waiting = rows.filter(r => r.qbo_status === "pending").length, bad = rows.filter(r => r.qbo_status === "error").length;
+    $("expCounts").innerHTML = waiting || bad ? `${waiting ? `<span style="color:var(--gold)">${waiting} waiting for tonight</span>` : ""}${bad ? `<span style="color:var(--bad2)">${bad} need a look</span>` : ""}` : "Snap a company receipt";
+    if (countOnly) return;
+    const st = r => r.qbo_status === "posted" ? `<span class="tag ok">In QuickBooks</span>` : r.qbo_status === "error" ? `<span class="tag bad" title="${esc(r.qbo_error || "")}">Needs a look</span>` : `<span class="tag warn">Tonight</span>`;
+    $("eList").innerHTML = rows.length ? rows.map(r => `<div class="frow"><span class="noimg">${svg(r.receipt_path ? "file" : "chev")}</span><span class="t"><b>${esc(r.vendor || "Receipt")}</b><small>${esc(new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric" }))} · ${esc(r.category)}${r.paid_personally ? " · paid personally" : ""}${r.qbo_status === "error" && r.qbo_error ? " · " + esc(r.qbo_error.slice(0, 80)) : ""}</small></span><span style="text-align:right"><span class="amt">${money(r.total)}</span><br>${st(r)}</span></div>`).join("") : '<p class="empty">No receipts yet. Start snapping.</p>';
+  }
+
   // ---------- hours ----------
   async function loadHours() {
     const me = meName(), now = new Date();
@@ -1338,7 +1430,7 @@
   });
 
   // ---------- navigation ----------
-  const TAB_OF = { home:"home", crew:"home", defects:"home", dispatch:"home", fuel:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
+  const TAB_OF = { home:"home", crew:"home", defects:"home", dispatch:"home", fuel:"home", exp:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
   function go(v) {
     S.view = v;
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
@@ -1351,6 +1443,7 @@
     if (v === "defects" && S.user) loadDefects();
     if (v === "dispatch" && S.user) openDispatch();
     if (v === "fuel" && S.user) openFuel();
+    if (v === "exp" && S.user) openExp();
     if (v !== "thread") C.open = null;
     if (v === "ticket" && S.user && !$("tkDone").hidden) { /* keep the done screen until they leave */ }
     $("v-" + v).scrollTop = 0;
