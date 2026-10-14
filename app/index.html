@@ -266,8 +266,94 @@
   .pill { height:24px; padding:0 9px; border-radius:12px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px; }
   .pill.y { background:rgba(111,191,138,.16); color:var(--ok2); } .pill.n { background:rgba(224,122,95,.16); color:var(--bad2); }
 
+
+  /* chat */
+  nav.tabs button { position:relative; }
+  .tbadge { position:absolute; top:0; left:calc(50% + 6px); min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--bad); color:#fff; font-size:11px; font-weight:800; line-height:18px; text-align:center; }
+  .chathead { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+  .newbtn { height:44px; padding:0 16px; border-radius:22px; border:0; background:var(--gold); color:var(--bg); font-weight:800; font-size:14px; display:flex; align-items:center; gap:6px; }
+  .newbtn svg { width:16px; height:16px; }
+  .notice { margin-top:18px; border-radius:16px; background:rgba(227,184,115,.10); border:1px solid rgba(227,184,115,.30); padding:14px 16px; display:flex; gap:12px; align-items:center; }
+  .notice p { margin:0; flex:1; font-size:14px; line-height:1.4; color:var(--soft); } .notice b { color:var(--text); }
+  .notice button { height:38px; padding:0 14px; border-radius:19px; border:0; background:var(--gold); color:var(--bg); font-weight:800; font-size:13px; flex:none; }
+  .threads { margin-top:14px; }
+  .thr { display:flex; align-items:center; gap:12px; width:100%; padding:12px 0; border:0; border-bottom:1px solid var(--line); background:none; color:var(--text); text-align:left; }
+  .thr .av { width:48px; height:48px; font-size:15px; }
+  .thr .av.grp { background:rgba(227,184,115,.16); color:var(--gold); } .thr .av.grp svg { width:22px; height:22px; }
+  .thr .t { flex:1; min-width:0; }
+  .thr .t1 { display:flex; justify-content:space-between; gap:8px; align-items:baseline; }
+  .thr b { font-size:16px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .thr time { font-size:12px; color:var(--muted); font-weight:600; flex:none; }
+  .thr .t2 { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-top:2px; }
+  .thr .pv { font-size:14px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .thr.unread .pv { color:var(--text); font-weight:600; }
+  .ub { min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:var(--gold); color:var(--bg); font-size:11px; font-weight:800; line-height:20px; text-align:center; flex:none; }
+  .muted-ic { width:14px; height:14px; color:var(--dim); flex:none; }
+
+  #v-thread { padding:0; display:flex; flex-direction:column; overflow:hidden; }
+  #v-thread:not([hidden]) ~ nav.tabs { display:none; }
+  .thead { display:flex; align-items:center; gap:10px; padding:calc(var(--top) + 10px) 12px 10px; border-bottom:1px solid var(--line); background:var(--bg); }
+  .thead .tt { flex:1; min-width:0; background:none; border:0; text-align:left; color:var(--text); padding:0; }
+  .thead .tt b { display:block; font-size:17px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .thead .tt small { display:block; font-size:12px; color:var(--muted); font-weight:600; }
+  .pin { margin:10px 12px 0; border-radius:14px; background:rgba(227,184,115,.10); border:1px solid rgba(227,184,115,.28); padding:10px 14px; display:flex; gap:10px; align-items:flex-start; font-size:13px; line-height:1.4; }
+  .pin svg { width:16px; height:16px; color:var(--gold); flex:none; margin-top:1px; }
+  .pin span { color:#d9cdbe; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+  .msgs { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px 12px 8px; display:flex; flex-direction:column; gap:4px; }
+  .day { text-align:center; font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--dim); margin:12px 0 6px; }
+  .m { display:flex; gap:8px; align-items:flex-end; max-width:84%; }
+  .m.me { align-self:flex-end; flex-direction:row-reverse; }
+  .m .av { width:30px; height:30px; font-size:10px; }
+  .m .av.sp { visibility:hidden; }
+  .m .col { min-width:0; display:flex; flex-direction:column; gap:4px; }
+  .m.me .col { align-items:flex-end; }
+  .m .who { font-size:11px; font-weight:700; color:var(--muted); margin:6px 0 0 12px; }
+  .bub { border-radius:18px; padding:9px 14px; font-size:15px; line-height:1.4; background:var(--surf2); white-space:pre-wrap; overflow-wrap:anywhere; }
+  .m.me .bub { background:var(--gold); color:var(--bg); font-weight:600; }
+  .m.me .bub a { color:var(--bg); }
+  .bub a { color:var(--gold2); }
+  .m .tm { font-size:10px; color:var(--dim); font-weight:600; margin:0 8px; }
+  .media { display:block; max-width:240px; max-height:320px; border-radius:16px; object-fit:cover; background:var(--surf); }
+  video.media { width:240px; }
+  .fileatt { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:16px; background:var(--surf2); color:var(--text); text-decoration:none; max-width:250px; border:0; text-align:left; }
+  .m.me .fileatt { background:rgba(227,184,115,.18); }
+  .fileatt svg { width:22px; height:22px; color:var(--gold); flex:none; }
+  .fileatt b { display:block; font-size:14px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px; }
+  .fileatt small { font-size:12px; color:var(--muted); }
+  .linkcard { display:block; width:240px; border-radius:16px; overflow:hidden; background:var(--surf2); color:var(--text); text-decoration:none; }
+  .linkcard img { display:block; width:100%; height:135px; object-fit:cover; }
+  .linkcard .lc { padding:10px 12px; display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700; }
+  .linkcard .lc svg { width:16px; height:16px; color:var(--gold); flex:none; }
+  .linkcard .lc small { display:block; font-weight:600; color:var(--muted); font-size:11px; }
+  .sending { opacity:.55; }
+  .composer { display:flex; align-items:flex-end; gap:8px; padding:8px 10px calc(var(--bot) + 10px); border-top:1px solid var(--line); background:var(--bg); }
+  .composer .round { width:44px; height:44px; flex:none; }
+  .composer .round svg { width:20px; height:20px; }
+  .composer textarea { flex:1; min-height:44px; max-height:140px; padding:11px 16px; border-radius:22px; border:1px solid var(--line2); background:var(--surf); font-size:16px; line-height:1.35; resize:none; outline:none; }
+  .composer textarea:focus { border-color:var(--gold); }
+  .composer .send { width:44px; height:44px; border-radius:50%; border:0; background:var(--gold); color:var(--bg); display:grid; place-items:center; flex:none; }
+  .composer .send svg { width:18px; height:18px; }
+  .composer .send:disabled { opacity:.4; }
+  .tray { display:flex; gap:8px; padding:8px 12px 0; overflow-x:auto; }
+  .tray div { position:relative; flex:none; width:64px; height:64px; border-radius:12px; background:var(--surf2); display:grid; place-items:center; overflow:hidden; font-size:10px; color:var(--muted); text-align:center; }
+  .tray img, .tray video { width:100%; height:100%; object-fit:cover; }
+  .tray button { position:absolute; top:2px; right:2px; width:22px; height:22px; border-radius:50%; border:0; background:rgba(0,0,0,.65); color:#fff; font-size:13px; line-height:22px; padding:0; }
+  .plist { max-height:50vh; overflow-y:auto; margin:0 -4px 14px; }
+  .pick { display:flex; align-items:center; gap:12px; width:100%; padding:10px 4px; border:0; border-bottom:1px solid var(--line); background:none; color:var(--text); text-align:left; font-size:15px; font-weight:700; }
+  .pick .av { width:38px; height:38px; }
+  .pick input { margin-left:auto; width:22px; height:22px; accent-color:var(--gold); }
+  .segtabs { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border-radius:14px; background:var(--surf); margin-bottom:14px; }
+  .segtabs button { height:38px; border-radius:10px; border:0; background:none; color:var(--muted); font-weight:800; font-size:14px; }
+  .segtabs button[aria-pressed="true"] { background:var(--gold); color:var(--bg); }
+  .sheet .field { margin-bottom:12px; }
+  .acts-list .btn { justify-content:flex-start; }
+  .viewer { position:fixed; inset:0; z-index:70; background:rgba(0,0,0,.94); display:grid; place-items:center; }
+  .viewer img, .viewer video { max-width:100%; max-height:100%; }
+  .viewer button { position:absolute; top:calc(var(--top) + 12px); right:12px; width:44px; height:44px; border-radius:50%; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:20px; }
+  .setrow { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:56px; border-top:1px solid var(--line); font-size:15px; font-weight:700; }
+  .setrow small { display:block; font-size:12px; color:var(--muted); font-weight:600; }
   /* tab bar */
-  nav.tabs { position:fixed; left:0; right:0; bottom:0; z-index:20; display:grid; grid-template-columns:repeat(4, 1fr); padding:10px 10px calc(var(--bot) + 10px);
+  nav.tabs { position:fixed; left:0; right:0; bottom:0; z-index:20; display:grid; grid-template-columns:repeat(5, 1fr); padding:10px 6px calc(var(--bot) + 10px);
              background:rgba(18,11,7,.92); -webkit-backdrop-filter:saturate(1.4) blur(18px); backdrop-filter:saturate(1.4) blur(18px); border-top:1px solid var(--line); }
   nav.tabs button { display:flex; flex-direction:column; align-items:center; gap:4px; padding:4px 0; background:none; border:0; color:#8a7e70; font-size:11px; font-weight:700; }
   nav.tabs svg { width:22px; height:22px; }
@@ -432,9 +518,33 @@
     <div id="goodList"></div>
   </section>
 
+  <section class="view" id="v-chat" hidden>
+    <div class="chathead"><div><div class="eyebrow">Chat</div><h1 class="h1">Messages</h1></div><button class="newbtn" type="button" id="newChat"><span data-i="plus"></span>New</button></div>
+    <div class="notice" id="pushNotice" hidden><p id="pushNoticeText"><b>Turn on notifications</b> to get pinged when someone messages you.</p><button type="button" id="pushNoticeBtn">Turn on</button></div>
+    <div class="threads" id="threads"><p class="empty">Loading...</p></div>
+  </section>
+
+  <section class="view" id="v-thread" hidden>
+    <div class="thead">
+      <button class="back" type="button" id="thBack" aria-label="Back" data-i="left"></button>
+      <span class="av" id="thAv"></span>
+      <button class="tt" type="button" id="thInfo"><b id="thTitle"></b><small id="thSub"></small></button>
+    </div>
+    <div class="pin" id="thPin" hidden><span data-i="pin"></span><span id="thPinText"></span></div>
+    <div class="msgs" id="msgs" aria-live="polite"></div>
+    <div class="tray" id="tray" hidden></div>
+    <form class="composer" id="composer">
+      <button class="round" type="button" id="attach" aria-label="Add photo, video or file" data-i="clip"></button>
+      <input type="file" id="fileIn" multiple hidden accept="image/*,video/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip,.heic">
+      <label style="flex:1; display:flex"><span style="position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0)">Message</span><textarea id="msgIn" rows="1" placeholder="Message"></textarea></label>
+      <button class="send" type="submit" id="sendBtn" aria-label="Send" data-i="send" disabled></button>
+    </form>
+  </section>
+
   <nav class="tabs" role="tablist">
     <button role="tab" data-v="home" aria-selected="true"><span data-i="home"></span>Home</button>
     <button role="tab" data-v="safety"><span data-i="shield"></span>Safety</button>
+    <button role="tab" data-v="chat"><span data-i="chat"></span>Chat<span class="tbadge" id="chatBadge" hidden></span></button>
     <button role="tab" data-v="ticket"><span data-i="ticket"></span>Tickets</button>
     <button role="tab" data-v="hours"><span data-i="clock"></span>Hours</button>
   </nav>
@@ -444,8 +554,41 @@
 <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shName">
   <div class="grab"></div>
   <h3 id="shName"></h3><p id="shMeta"></p>
+  <div class="setrow"><span>Notifications<small id="pushState">Off</small></span><button class="newbtn" type="button" id="pushToggle" style="height:38px">Turn on</button></div>
+  <div class="setrow" id="remRow" hidden><span>Daily reminders<small>Forms, field ticket, payday</small></span><span class="switch"><input type="checkbox" id="remToggle" aria-label="Daily reminders" checked><i></i></span></div>
+  <div style="height:12px"></div>
   <a class="btn ghost" href="get.html">Install help</a>
   <button class="btn ghost" id="signOut" type="button">Sign out</button>
+</div>
+<div class="sheet" id="newSheet" role="dialog" aria-modal="true" aria-labelledby="newTitle">
+  <div class="grab"></div>
+  <h3 id="newTitle">New message</h3>
+  <div class="segtabs"><button type="button" id="segDm" aria-pressed="true">Private</button><button type="button" id="segGrp" aria-pressed="false">Group</button></div>
+  <label class="field" id="grpNameRow" hidden><span>Group name</span><input id="grpName" maxlength="60" placeholder="e.g. Daveta crew"></label>
+  <div class="plist" id="plist"></div>
+  <button class="btn" type="button" id="grpCreate" hidden>Create group</button>
+</div>
+<div class="sheet" id="infoSheet" role="dialog" aria-modal="true" aria-labelledby="infoTitle">
+  <div class="grab"></div>
+  <h3 id="infoTitle"></h3><p id="infoMembers"></p>
+  <div class="setrow"><span>Mute this chat<small>No pings from this chat</small></span><span class="switch"><input type="checkbox" id="muteToggle" aria-label="Mute this chat"><i></i></span></div>
+  <div style="height:8px"></div>
+  <button class="btn ghost" type="button" id="infoClose">Close</button>
+</div>
+<div class="sheet acts-list" id="msgSheet" role="dialog" aria-modal="true" aria-label="Message options">
+  <div class="grab"></div>
+  <button class="btn ghost" type="button" id="maCopy">Copy text</button>
+  <button class="btn ghost" type="button" id="maPin">Pin to top of chat</button>
+  <button class="btn ghost" type="button" id="maUnpin">Unpin</button>
+  <button class="btn ghost" type="button" id="maDel" style="color:var(--bad2)">Delete message</button>
+  <button class="btn ghost" type="button" id="maCancel">Cancel</button>
+</div>
+<div class="sheet" id="pushSheet" role="dialog" aria-modal="true" aria-labelledby="pushTitle">
+  <div class="grab"></div>
+  <h3 id="pushTitle">Turn on notifications?</h3>
+  <p>Get a ping when the crew messages you, plus reminders for your Pre-Trip, FLHA, Toolbox, field ticket, payday and cut-off.</p>
+  <button class="btn" type="button" id="pushYes">Turn on notifications</button>
+  <button class="btn ghost" type="button" id="pushNo">Not now</button>
 </div>
 <div class="sheet" id="bioSheet" role="dialog" aria-modal="true" aria-labelledby="bioTitle">
   <div class="grab"></div>
@@ -483,7 +626,14 @@
     phone:'<path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/>',
     crown:'<path d="M3 8l4 4 5-7 5 7 4-4-2 11H5z"/>',
     face:'<path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><path d="M9 9v1.5M15 9v1.5M12 9v4h-1"/><path d="M9 15.5c1.6 1.3 4.4 1.3 6 0"/>',
-    file:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>'
+    file:'<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>',
+    chat:'<path d="M21 12a8 8 0 0 1-11.8 7L3 21l2-6.2A8 8 0 1 1 21 12z"/>',
+    pin:'<path d="M12 17v5M9 3h6l-1 6 4 4H6l4-4z"/>',
+    clip:'<path d="M21 11.5l-8.6 8.6a5 5 0 0 1-7.1-7.1l8.6-8.6a3.3 3.3 0 0 1 4.7 4.7l-8.6 8.6a1.7 1.7 0 0 1-2.4-2.4l7.9-7.9"/>',
+    send:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+    mute:'<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M22 9l-6 6M16 9l6 6"/>',
+    play:'<path d="M7 4l13 8-13 8z"/>',
+    link:'<path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>'
   };
   const svg = (n, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w || 1.9}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`;
   const paintIcons = root => root.querySelectorAll("[data-i]").forEach(el => { if (!el.querySelector("svg")) el.insertAdjacentHTML("afterbegin", svg(el.dataset.i, el.dataset.i === "check" ? 2.8 : 0)); });
@@ -564,7 +714,7 @@
     $("bioYes").textContent = "Use " + BIO;
     $("scrim").classList.add("on"); $("bioSheet").classList.add("on");
   }
-  $("bioNo").addEventListener("click", () => { store("mp_bio_asked_" + S.user.id, 1); closeBio(); });
+  $("bioNo").addEventListener("click", () => { store("mp_bio_asked_" + S.user.id, 1); closeBio(); setTimeout(maybeAskPush, 500); });
   $("bioYes").addEventListener("click", async () => {
     const u = S.user, name = (S.profile && S.profile.full_name) || u.email;
     try {
@@ -575,7 +725,7 @@
         authenticatorSelection:{ authenticatorAttachment:"platform", userVerification:"required", residentKey:"preferred" },
         timeout:60000, attestation:"none" } });
       store(bioKey(u.id), b64(cred.rawId)); store("mp_bio_asked_" + u.id, 1);
-      closeBio(); toast(BIO + " is on");
+      closeBio(); toast(BIO + " is on"); setTimeout(maybeAskPush, 1200);
     } catch (e) { closeBio(); toast(BIO + " wasn't set up. It'll ask again next sign-in."); }
   });
 
@@ -628,7 +778,9 @@
     if (S.crew) store("montney_me", S.crew.display_name);   // safety forms pick this name automatically
     $("login").hidden = true; $("app").hidden = false;
     paint(); hideSplash();
-    if (needLock) lock(); else setTimeout(maybeAskBio, 700);
+    if (needLock) lock(); else setTimeout(async () => { await maybeAskBio(); if (!$("bioSheet").classList.contains("on")) maybeAskPush(); }, 700);
+    const qChat = new URLSearchParams(location.search).get("chat");
+    if (qChat) { history.replaceState(null, "", location.pathname); openThread(qChat); }
   }
 
   // ---------- home ----------
@@ -641,7 +793,7 @@
     $("shName").textContent = name; $("shMeta").textContent = (S.user.email || "") + (S.admin ? " · Office admin" : "");
     $("tkToday").textContent = now.toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" });
     renderTiles(new Set()); renderSafetyList(new Set());
-    loadToday(); loadStats(); fillCrewNames(); setupTicket();
+    loadToday(); loadStats(); fillCrewNames(); setupTicket(); chatStart();
   }
 
   const owedFor = c => FORMS.filter(f => f.owed(c));
@@ -833,7 +985,7 @@
   });
 
   // ---------- navigation ----------
-  const TAB_OF = { home:"home", crew:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours" };
+  const TAB_OF = { home:"home", crew:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
   function go(v) {
     S.view = v;
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
@@ -842,6 +994,8 @@
     $("portalFrame").onload = () => { try { ["touchstart","click","keydown","scroll"].forEach(ev => $("portalFrame").contentWindow.addEventListener(ev, touch, { passive:true, capture:true })); } catch (e) {} };
     if ((v === "home" || v === "safety" || v === "crew") && S.user) { loadToday(); if (v === "home") loadStats(); }
     if (v === "hours" && S.user) { loadHours(); loadStats(); }
+    if (v === "chat" && S.user) { loadThreads(); pushNotice(); }
+    if (v !== "thread") C.open = null;
     if (v === "ticket" && S.user && !$("tkDone").hidden) { /* keep the done screen until they leave */ }
     $("v-" + v).scrollTop = 0;
   }
@@ -856,7 +1010,8 @@
 
   const openSheet = () => { $("scrim").classList.add("on"); $("sheet").classList.add("on"); };
   const closeSheet = () => { $("scrim").classList.remove("on"); $("sheet").classList.remove("on"); };
-  $("avatar").addEventListener("click", openSheet); $("scrim").addEventListener("click", () => { closeSheet(); closeBio(); });
+  $("avatar").addEventListener("click", () => { openSheet(); pushState(); });
+  $("scrim").addEventListener("click", () => { closeSheet(); closeBio(); closeAll(); });
 
   // ---------- field tickets (same Google Sheet as the website) ----------
   $("trucks").innerHTML = TRUCKS.map(t => `<button type="button" aria-pressed="false" data-truck="${esc(t)}">${t === "Skid steer" ? "Skid" : esc(t)}</button>`).join("");
@@ -921,6 +1076,308 @@
     }).catch(() => { btn.disabled = false; btn.textContent = "Submit field ticket"; msg("tkMsg", "Not sent. Your ticket is still filled in. Tap submit again when you have signal.", "bad"); });
   });
   $("tkAgain").addEventListener("click", () => { $("tk-date").value = ""; showTicketForm(); $("v-ticket").scrollTop = 0; });
+
+
+  // ---------- notifications (phone pings) ----------
+  const VAPID_PUBLIC = "BLgGNzx1oQabPEaLcE_PYUq_n02EgWXrhQAr4lsedowYhuUGOqP4JGaEFO9mn46HupWd5YE9fBK8-VkSBz1g4u4";
+  const STANDALONE = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const pushOn = () => pushSupported() && Notification.permission === "granted";
+  const keyBytes = k => Uint8Array.from(atob((k + "=".repeat((4 - k.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+  async function savePushSub(sub) {
+    const j = sub.toJSON();
+    await sb.from("push_subscriptions").upsert({ endpoint:j.endpoint, user_id:S.user.id, p256dh:j.keys.p256dh, auth:j.keys.auth }, { onConflict:"endpoint" });
+  }
+  async function enablePush() {
+    if (!pushSupported()) { toast(IOS && !STANDALONE ? "Add MontneyPro to your home screen first" : "This phone can't do notifications"); return false; }
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== "granted") { toast("Notifications are off. Turn them on in Settings."); pushState(); return false; }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey:keyBytes(VAPID_PUBLIC) });
+      await savePushSub(sub);
+      sb.functions.invoke("push", { body:{ mode:"test" } }).catch(() => {});
+      toast("Notifications are on"); pushState(); pushNotice();
+      return true;
+    } catch (e) { toast("Couldn't turn on notifications"); return false; }
+  }
+  async function refreshPush() {   // endpoints can change; keep ours current
+    if (!pushOn()) return;
+    try { const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription(); if (sub) await savePushSub(sub); } catch (e) {}
+  }
+  async function pushState() {
+    const on = pushOn();
+    $("pushState").textContent = on ? "On for this phone" : (IOS && !STANDALONE) ? "Add MontneyPro to your home screen first" : (pushSupported() && Notification.permission === "denied") ? "Blocked. Turn on in your phone's Settings" : "Off";
+    $("pushToggle").hidden = on; $("remRow").hidden = !on;
+    if (on) { const { data } = await sb.from("push_subscriptions").select("reminders").eq("user_id", S.user.id).limit(1); $("remToggle").checked = !data || !data[0] || data[0].reminders !== false; }
+  }
+  $("pushToggle").addEventListener("click", enablePush);
+  $("remToggle").addEventListener("change", async () => {
+    await sb.from("push_subscriptions").update({ reminders:$("remToggle").checked }).eq("user_id", S.user.id);
+    toast($("remToggle").checked ? "Reminders on" : "Reminders off");
+  });
+  function pushNotice() {
+    const show = !pushOn() && !(pushSupported() && Notification.permission === "denied");
+    $("pushNotice").hidden = !show;
+    if (IOS && !STANDALONE) { $("pushNoticeText").innerHTML = "<b>Want pings?</b> Add MontneyPro to your home screen, then turn on notifications."; $("pushNoticeBtn").textContent = "How"; }
+  }
+  $("pushNoticeBtn").addEventListener("click", () => { if (IOS && !STANDALONE) location.href = "get.html"; else enablePush(); });
+  function maybeAskPush() {
+    if (!S.user || pushOn() || !pushSupported() || Notification.permission === "denied" || store("mp_push_asked_" + S.user.id)) return;
+    if (IOS && !STANDALONE) return;
+    openOnly("pushSheet");
+  }
+  $("pushYes").addEventListener("click", async () => { store("mp_push_asked_" + S.user.id, 1); closeAll(); await enablePush(); });
+  $("pushNo").addEventListener("click", () => { store("mp_push_asked_" + S.user.id, 1); closeAll(); });
+  if (navigator.serviceWorker) navigator.serviceWorker.addEventListener("message", e => {
+    if (e.data && e.data.type === "open") { const u = new URL(e.data.url), c = u.searchParams.get("chat"), t = u.searchParams.get("tab"); if (c) openThread(c); else if (t) go(t); }
+  });
+
+  // ---------- chat ----------
+  const C = { people:[], byId:{}, threads:[], open:null, msgs:[], urls:{}, chan:null, pending:[], sel:null, mode:"dm" };
+  const SHEETS = ["newSheet", "infoSheet", "msgSheet", "pushSheet"];
+  function openOnly(id) { SHEETS.forEach(x => $(x).classList.toggle("on", x === id)); $("scrim").classList.add("on"); }
+  function closeAll() { SHEETS.forEach(x => $(x).classList.remove("on")); if (!$("sheet").classList.contains("on") && !$("bioSheet").classList.contains("on")) $("scrim").classList.remove("on"); }
+  const nameOf = id => (C.byId[id] && C.byId[id].name) || "Someone";
+  const timeOf = t => { const d = new Date(t), now = new Date(); return iso(d) === iso(now) ? d.toLocaleTimeString("en-CA", { hour:"numeric", minute:"2-digit" }).replace(/\s?([ap])\.?m\.?/i, (m, a) => " " + a.toUpperCase() + "M") : (now - d < 6 * 86400000 ? d.toLocaleDateString("en-CA", { weekday:"short" }) : d.toLocaleDateString("en-CA", { month:"short", day:"numeric" })); };
+  const kb = n => n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB";
+
+  async function chatStart() {
+    const { data } = await sb.rpc("chat_people");
+    C.people = data || []; C.byId = Object.fromEntries(C.people.map(p => [p.id, p]));
+    loadThreads(); refreshPush();
+    if (C.chan) sb.removeChannel(C.chan);
+    C.chan = sb.channel("chat-" + S.user.id)
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"chat_messages" }, p => onNewMessage(p.new))
+      .on("postgres_changes", { event:"DELETE", schema:"public", table:"chat_messages" }, p => { if (C.open && p.old && p.old.id) { C.msgs = C.msgs.filter(m => m.id !== p.old.id); renderMsgs(); } loadThreads(); })
+      .subscribe();
+  }
+  async function loadThreads() {
+    const { data } = await sb.rpc("my_threads");
+    C.threads = data || [];
+    const unread = C.threads.reduce((a, t) => a + (t.muted ? 0 : t.unread), 0);
+    $("chatBadge").hidden = !unread; $("chatBadge").textContent = unread > 99 ? "99+" : unread;
+    if (navigator.setAppBadge) { try { unread ? navigator.setAppBadge(unread) : navigator.clearAppBadge(); } catch (e) {} }
+    $("threads").innerHTML = C.threads.length ? C.threads.map(t => {
+      const pv = t.last_body ? (t.kind === "group" && t.last_sender ? (t.last_sender === S.user.id ? "You: " : nameOf(t.last_sender).split(" ")[0] + ": ") : (t.last_sender === S.user.id ? "You: " : "")) + t.last_body
+        : t.last_has_media ? (t.last_sender === S.user.id ? "You sent an attachment" : "Sent an attachment") : (t.everyone ? "Say hi to the crew" : "No messages yet");
+      const av = t.kind === "group" ? `<span class="av grp">${svg("users")}</span>` : `<span class="av">${esc(initials(t.title))}</span>`;
+      return `<button class="thr${t.unread && !t.muted ? " unread" : ""}" type="button" data-thread="${t.id}">${av}<span class="t"><span class="t1"><b>${esc(t.title || "Chat")}</b><time>${t.last_body || t.last_has_media ? timeOf(t.last_message_at) : ""}</time></span><span class="t2"><span class="pv">${esc(pv)}</span>${t.muted ? `<span class="muted-ic">${svg("mute")}</span>` : t.unread ? `<span class="ub">${t.unread}</span>` : ""}</span></span></button>`;
+    }).join("") : '<p class="empty">No chats yet.</p>';
+  }
+  $("threads").addEventListener("click", e => { const b = e.target.closest("[data-thread]"); if (b) openThread(b.dataset.thread); });
+
+  async function openThread(id) {
+    if (!C.threads.find(t => t.id === id)) await loadThreads();
+    const t = C.threads.find(x => x.id === id); if (!t) { toast("That chat isn't available"); return; }
+    C.open = t; C.msgs = []; C.pending = []; renderTray();
+    go("thread"); C.open = t;
+    $("thTitle").textContent = t.title || "Chat";
+    $("thAv").className = "av" + (t.kind === "group" ? " grp" : ""); $("thAv").innerHTML = t.kind === "group" ? svg("users") : esc(initials(t.title));
+    $("msgs").innerHTML = '<p class="empty" style="text-align:center">Loading...</p>';
+    const [m, mem] = await Promise.all([
+      sb.from("chat_messages").select("*").eq("thread_id", id).order("created_at", { ascending:false }).limit(150),
+      sb.from("chat_members").select("user_id,muted").eq("thread_id", id)
+    ]);
+    if (!C.open || C.open.id !== id) return;
+    C.members = mem.data || [];
+    $("thSub").textContent = t.kind === "group" ? C.members.length + " people" + (t.muted ? " · muted" : "") : (t.muted ? "Muted" : "Private");
+    C.msgs = (m.data || []).reverse();
+    await signUrls(C.msgs);
+    renderMsgs(true); renderPin(); markRead();
+    setTimeout(() => $("msgIn").focus({ preventScroll:true }), 50);
+  }
+  $("thBack").addEventListener("click", () => { go("chat"); });
+  async function markRead() {
+    if (!C.open) return;
+    await sb.from("chat_members").update({ last_read_at:new Date().toISOString() }).eq("thread_id", C.open.id).eq("user_id", S.user.id);
+    loadThreads();
+  }
+  async function renderPin() {
+    const t = C.open; if (!t || !t.pinned_message_id) { $("thPin").hidden = true; return; }
+    const pm = C.msgs.find(m => m.id === t.pinned_message_id) || (await sb.from("chat_messages").select("*").eq("id", t.pinned_message_id).maybeSingle()).data;
+    if (!pm) { $("thPin").hidden = true; return; }
+    $("thPin").hidden = false; $("thPinText").innerHTML = `<b style="color:var(--text)">${esc(nameOf(pm.sender_id).split(" ")[0])}:</b> ${esc(pm.body || "Attachment")}`;
+  }
+
+  async function signUrls(msgs) {
+    const paths = []; msgs.forEach(m => (m.attachments || []).forEach(a => { if (a.path && !C.urls[a.path]) paths.push(a.path); }));
+    if (!paths.length) return;
+    const { data } = await sb.storage.from("chat-media").createSignedUrls(paths, 60 * 60 * 6);
+    (data || []).forEach(d => { if (d.signedUrl) C.urls[d.path] = d.signedUrl; });
+  }
+  const URL_RE = /\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/gi;
+  const linkify = t => esc(t).replace(/\bhttps?:\/\/[^\s<]+[^\s<.,;:!?)\]'"]/gi, u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+  function linkCard(u) {
+    let host = ""; try { host = new URL(u).hostname.replace(/^www\.|^m\./, ""); } catch (e) { return ""; }
+    const yt = u.match(/(?:youtube\.com\/(?:watch\?v=|shorts\/)|youtu\.be\/)([\w-]{6,})/);
+    const kind = /instagram\.com/.test(host) ? "Instagram" : /tiktok\.com/.test(host) ? "TikTok" : /facebook\.com|fb\.watch/.test(host) ? "Facebook" : yt ? "YouTube" : "";
+    if (!kind) return "";
+    return `<a class="linkcard" href="${esc(u)}" target="_blank" rel="noopener">${yt ? `<img src="https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg" alt="" loading="lazy">` : ""}<span class="lc">${svg(yt || /reel|video|watch|tiktok/.test(u) ? "play" : "link")}<span>${kind}${/reel/.test(u) ? " reel" : ""}<small>${esc(host)}</small></span></span></a>`;
+  }
+  function attHtml(a, mine) {
+    const url = C.urls[a.path] || a.local || "";
+    if ((a.type || "").startsWith("image/")) return `<img class="media" src="${esc(url)}" alt="${esc(a.name || "Photo")}" loading="lazy" data-view="${esc(url)}"${a.w ? ` width="${a.w}" height="${a.h}" style="aspect-ratio:${a.w}/${a.h}; height:auto"` : ""}>`;
+    if ((a.type || "").startsWith("video/")) return `<video class="media" src="${esc(url)}#t=0.1" controls playsinline preload="metadata"></video>`;
+    return `<a class="fileatt" href="${esc(url)}" target="_blank" rel="noopener" download="${esc(a.name || "file")}">${svg("file")}<span><b>${esc(a.name || "File")}</b><small>${a.size ? kb(a.size) : "File"}</small></span></a>`;
+  }
+  function renderMsgs(jump) {
+    const box = $("msgs"), atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+    const group = C.open && C.open.kind === "group";
+    let html = "", lastDay = "", prev = null;
+    const all = C.msgs.concat(C.pending);
+    if (!all.length) html = `<p class="empty" style="text-align:center; margin-top:40px">${C.open && C.open.everyone ? "This chat has the whole crew in it." : "Say something."}</p>`;
+    all.forEach((m, i) => {
+      const d = iso(new Date(m.created_at));
+      if (d !== lastDay) { html += `<div class="day">${d === iso(new Date()) ? "Today" : new Date(m.created_at).toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" })}</div>`; lastDay = d; prev = null; }
+      const mine = m.sender_id === S.user.id, next = all[i + 1];
+      const firstOfRun = !prev || prev.sender_id !== m.sender_id || new Date(m.created_at) - new Date(prev.created_at) > 5 * 60000;
+      const lastOfRun = !next || next.sender_id !== m.sender_id || iso(new Date(next.created_at)) !== d || new Date(next.created_at) - new Date(m.created_at) > 5 * 60000;
+      const links = (m.body || "").match(URL_RE) || [];
+      const parts = (m.attachments || []).map(a => attHtml(a, mine)).join("") + links.map(linkCard).join("") + (m.body ? `<div class="bub">${linkify(m.body)}</div>` : "");
+      html += `<div class="m${mine ? " me" : ""}${m.pending ? " sending" : ""}" data-mid="${m.id || ""}">${!mine && group ? `<span class="av${lastOfRun ? "" : " sp"}">${esc(initials(nameOf(m.sender_id)))}</span>` : ""}<div class="col">${!mine && group && firstOfRun ? `<div class="who">${esc(nameOf(m.sender_id))}</div>` : ""}${parts}${lastOfRun ? `<span class="tm">${m.pending ? "Sending..." : timeOf(m.created_at).replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/, "") || timeOf(m.created_at)}</span>` : ""}</div></div>`;
+      prev = m;
+    });
+    box.innerHTML = html;
+    if (jump || atBottom) { box.scrollTop = box.scrollHeight; box.querySelectorAll("img,video").forEach(el => el.addEventListener("load", () => { if (jump || atBottom) box.scrollTop = box.scrollHeight; }, { once:true })); }
+  }
+  async function onNewMessage(m) {
+    if (C.open && m.thread_id === C.open.id) {
+      if (!C.msgs.find(x => x.id === m.id)) { await signUrls([m]); C.msgs.push(m); C.pending = C.pending.filter(p => p.tmp !== m.client_tmp); renderMsgs(m.sender_id === S.user.id); }
+      if (!document.hidden) markRead(); else loadThreads();
+    } else loadThreads();
+  }
+
+  // composer
+  const grow = () => { const t = $("msgIn"); t.style.height = "auto"; t.style.height = Math.min(140, t.scrollHeight) + "px"; $("sendBtn").disabled = !t.value.trim() && !C.pending.length; };
+  $("msgIn").addEventListener("input", grow);
+  $("msgIn").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !IOS && matchMedia("(pointer:fine)").matches) { e.preventDefault(); $("composer").requestSubmit(); } });
+  $("attach").addEventListener("click", () => $("fileIn").click());
+  $("fileIn").addEventListener("change", () => {
+    [...$("fileIn").files].forEach(f => {
+      if (f.size > 50 * 1024 * 1024) { toast(f.name + " is over 50 MB"); return; }
+      C.pending.push({ file:f, local:URL.createObjectURL(f) });
+    });
+    $("fileIn").value = ""; renderTray(); grow();
+  });
+  function renderTray() {
+    $("tray").hidden = !C.pending.length;
+    $("tray").innerHTML = C.pending.map((p, i) => `<div>${p.file.type.startsWith("image/") ? `<img src="${p.local}" alt="">` : p.file.type.startsWith("video/") ? `<video src="${p.local}#t=0.1" muted playsinline></video>` : esc(p.file.name.slice(0, 18))}<button type="button" data-rm="${i}" aria-label="Remove">×</button></div>`).join("");
+  }
+  $("tray").addEventListener("click", e => { const b = e.target.closest("[data-rm]"); if (b) { C.pending.splice(+b.dataset.rm, 1); renderTray(); grow(); } });
+  async function shrinkImage(f) {
+    if (!f.type.startsWith("image/") || f.type === "image/gif") return { blob:f, type:f.type, ext:(f.name.split(".").pop() || "bin").toLowerCase() };
+    try {
+      const bmp = await createImageBitmap(f), max = 1800, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+      const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+      c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+      const blob = await new Promise(r => c.toBlob(r, "image/jpeg", .85));
+      return { blob, type:"image/jpeg", ext:"jpg", w:c.width, h:c.height };
+    } catch (e) { return { blob:f, type:f.type, ext:(f.name.split(".").pop() || "bin").toLowerCase() }; }
+  }
+  $("composer").addEventListener("submit", async e => {
+    e.preventDefault();
+    const t = C.open; if (!t) return;
+    const body = $("msgIn").value.trim(), files = C.pending.map(p => p.file);
+    if (!body && !files.length) return;
+    $("msgIn").value = ""; C.pending = []; renderTray(); grow();
+    const tmp = { id:"", pending:true, sender_id:S.user.id, body, created_at:new Date().toISOString(), attachments:files.map(f => ({ type:f.type, name:f.name, size:f.size, local:URL.createObjectURL(f) })) };
+    C.msgs.push(tmp); renderMsgs(true);
+    try {
+      const atts = [];
+      for (const f of files) {
+        const s2 = await shrinkImage(f);
+        const path = `${t.id}/${crypto.randomUUID()}.${String(s2.ext).replace(/[^a-z0-9]/g, "").slice(0, 5) || "bin"}`;
+        const up = await sb.storage.from("chat-media").upload(path, s2.blob, { contentType:s2.type || "application/octet-stream" });
+        if (up.error) throw up.error;
+        atts.push({ path, name:f.name, type:s2.type || f.type, size:s2.blob.size, w:s2.w, h:s2.h });
+      }
+      const { data, error } = await sb.from("chat_messages").insert({ thread_id:t.id, sender_id:S.user.id, body:body || null, attachments:atts }).select().single();
+      if (error) throw error;
+      C.msgs = C.msgs.filter(m => m !== tmp);
+      if (!C.msgs.find(m => m.id === data.id)) { await signUrls([data]); C.msgs.push(data); }
+      renderMsgs(true);
+      sb.functions.invoke("push", { body:{ message_id:data.id } }).catch(() => {});
+      loadThreads();
+    } catch (err) {
+      C.msgs = C.msgs.filter(m => m !== tmp); renderMsgs();
+      $("msgIn").value = body; grow(); toast("Didn't send. Check your signal and try again.");
+    }
+  });
+
+  // tap a message: copy / pin / delete; tap a photo to see it big
+  $("msgs").addEventListener("click", e => {
+    const v = e.target.closest("[data-view]");
+    if (v) { const d = document.createElement("div"); d.className = "viewer"; d.innerHTML = `<img src="${esc(v.dataset.view)}" alt=""><button type="button" aria-label="Close">×</button>`; d.addEventListener("click", () => d.remove()); document.body.appendChild(d); return; }
+    if (e.target.closest("a,video,button")) return;
+    const row = e.target.closest("[data-mid]"); if (!row || !row.dataset.mid) return;
+    const m = C.msgs.find(x => x.id === row.dataset.mid); if (!m) return;
+    C.sel = m;
+    const mine = m.sender_id === S.user.id, grp = C.open.kind === "group";
+    $("maCopy").hidden = !m.body;
+    $("maPin").hidden = !(S.admin && grp) || C.open.pinned_message_id === m.id;
+    $("maUnpin").hidden = !(S.admin && grp) || C.open.pinned_message_id !== m.id;
+    $("maDel").hidden = !(mine || S.admin);
+    openOnly("msgSheet");
+  });
+  $("maCancel").addEventListener("click", closeAll);
+  $("maCopy").addEventListener("click", () => { try { navigator.clipboard.writeText(C.sel.body || ""); toast("Copied"); } catch (e) {} closeAll(); });
+  const setPin = async id => { const { error } = await sb.from("chat_threads").update({ pinned_message_id:id }).eq("id", C.open.id); closeAll(); if (error) { toast("Couldn't pin that"); return; } C.open.pinned_message_id = id; renderPin(); toast(id ? "Pinned" : "Unpinned"); };
+  $("maPin").addEventListener("click", () => setPin(C.sel.id));
+  $("maUnpin").addEventListener("click", () => setPin(null));
+  $("maDel").addEventListener("click", async () => {
+    const m = C.sel; closeAll();
+    const { error } = await sb.from("chat_messages").delete().eq("id", m.id);
+    if (error) { toast("Couldn't delete that"); return; }
+    (m.attachments || []).forEach(a => sb.storage.from("chat-media").remove([a.path]).catch(() => {}));
+    C.msgs = C.msgs.filter(x => x.id !== m.id); renderMsgs(); loadThreads();
+  });
+
+  // chat info + mute
+  $("thInfo").addEventListener("click", () => {
+    const t = C.open; if (!t) return;
+    $("infoTitle").textContent = t.title || "Chat";
+    $("infoMembers").textContent = (C.members || []).map(x => x.user_id === S.user.id ? "You" : nameOf(x.user_id)).join(", ");
+    $("muteToggle").checked = !!t.muted;
+    openOnly("infoSheet");
+  });
+  $("infoClose").addEventListener("click", closeAll);
+  $("muteToggle").addEventListener("change", async () => {
+    const muted = $("muteToggle").checked;
+    await sb.from("chat_members").update({ muted }).eq("thread_id", C.open.id).eq("user_id", S.user.id);
+    C.open.muted = muted; $("thSub").textContent = C.open.kind === "group" ? (C.members || []).length + " people" + (muted ? " · muted" : "") : (muted ? "Muted" : "Private");
+    toast(muted ? "Muted" : "Unmuted"); loadThreads();
+  });
+
+  // new private chat or group
+  function renderPeople() {
+    const ppl = C.people.filter(p => p.id !== S.user.id);
+    $("plist").innerHTML = ppl.length ? ppl.map(p => C.mode === "dm"
+      ? `<button class="pick" type="button" data-dm="${p.id}"><span class="av">${esc(initials(p.name))}</span>${esc(p.name)}</button>`
+      : `<label class="pick"><span class="av">${esc(initials(p.name))}</span>${esc(p.name)}<input type="checkbox" value="${p.id}"></label>`).join("") : '<p class="empty">Nobody else has an account yet.</p>';
+  }
+  function setMode(mode) {
+    C.mode = mode; $("segDm").setAttribute("aria-pressed", mode === "dm"); $("segGrp").setAttribute("aria-pressed", mode === "group");
+    $("grpNameRow").hidden = $("grpCreate").hidden = mode !== "group"; $("newTitle").textContent = mode === "dm" ? "New message" : "New group"; renderPeople();
+  }
+  $("newChat").addEventListener("click", () => { setMode("dm"); $("grpName").value = ""; openOnly("newSheet"); });
+  $("segDm").addEventListener("click", () => setMode("dm"));
+  $("segGrp").addEventListener("click", () => setMode("group"));
+  $("plist").addEventListener("click", async e => {
+    const b = e.target.closest("[data-dm]"); if (!b) return;
+    const { data, error } = await sb.rpc("start_dm", { other:b.dataset.dm });
+    closeAll(); if (error) { toast("Couldn't open that chat"); return; }
+    await loadThreads(); openThread(data);
+  });
+  $("grpCreate").addEventListener("click", async () => {
+    const name = $("grpName").value.trim(), ids = [...$("plist").querySelectorAll("input:checked")].map(i => i.value);
+    if (!name) { toast("Give the group a name"); return; }
+    if (!ids.length) { toast("Pick at least one person"); return; }
+    const { data, error } = await sb.rpc("create_group", { p_title:name, p_members:ids });
+    closeAll(); if (error) { toast("Couldn't make that group"); return; }
+    await loadThreads(); openThread(data);
+  });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && S.user) { loadThreads(); if (C.open) markRead(); } });
 
   if (new URLSearchParams(location.search).get("tab")) go(new URLSearchParams(location.search).get("tab"));
 })();
