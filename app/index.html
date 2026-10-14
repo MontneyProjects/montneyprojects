@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1c110a">
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MontneyPro">
+<title>MontneyPro</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&display=swap">
+<style>
+  :root {
+    --bg:#140c07; --bg2:#1c110a; --panel:#241710; --panel2:#2e1e14; --line:#3d2a1c;
+    --text:#f6eedc; --muted:#b9a58f; --amber:#f3c279; --rust:#d98a3d; --ok:#6fbf8b; --bad:#e2725b;
+    --sans:Archivo, -apple-system, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --top:env(safe-area-inset-top, 0px); --bot:env(safe-area-inset-bottom, 0px);
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { margin:0; height:100%; }
+  body { background:var(--bg); color:var(--text); font:16px/1.45 var(--sans); overscroll-behavior:none; -webkit-font-smoothing:antialiased; }
+  button, input, select, textarea { font:inherit; color:inherit; }
+  [hidden] { display:none !important; }
+  a { color:var(--amber); }
+
+  /* splash */
+  #splash { position:fixed; inset:0; z-index:50; display:grid; place-items:center; background:radial-gradient(120% 70% at 50% 110%, #4a2a12 0%, var(--bg2) 55%, var(--bg) 100%); transition:opacity .5s ease, visibility .5s; }
+  #splash.gone { opacity:0; visibility:hidden; }
+  #splash .mark { text-align:center; animation:rise .9s cubic-bezier(.2,.8,.2,1) both; }
+  #splash img { width:min(62vw, 260px); display:block; margin:0 auto; }
+  .pro { display:inline-block; margin-top:14px; padding:5px 14px; border-radius:7px; background:var(--amber); color:var(--bg2); font-weight:800; letter-spacing:.14em; font-size:15px; }
+  #splash .bar { width:120px; height:3px; margin:26px auto 0; border-radius:3px; background:var(--line); overflow:hidden; }
+  #splash .bar i { display:block; height:100%; width:40%; background:var(--amber); border-radius:3px; animation:load 1s ease-in-out infinite; }
+  @keyframes rise { from { opacity:0; transform:translateY(14px) scale(.97); } to { opacity:1; transform:none; } }
+  @keyframes load { from { transform:translateX(-100%); } to { transform:translateX(260%); } }
+
+  /* login */
+  #login { min-height:100%; display:flex; flex-direction:column; justify-content:flex-end; background:linear-gradient(180deg, rgba(20,12,7,0) 0%, rgba(20,12,7,0) 34%, rgba(20,12,7,.6) 52%, var(--bg) 64%), url(truck.jpg) 24% 0/auto 66vh no-repeat, var(--bg); padding:calc(var(--top) + 24px) 22px calc(var(--bot) + 28px); }
+  #login .brand img { width:180px; display:block; }
+  #login h1 { font-size:30px; line-height:1.1; margin:18px 0 6px; letter-spacing:-.01em; }
+  #login p.sub { color:var(--muted); margin:0 0 22px; }
+  .field { display:block; margin-bottom:12px; }
+  .field span { display:block; font-size:13px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; }
+  .field input, .field select, .field textarea { width:100%; padding:14px 14px; border-radius:12px; border:1px solid var(--line); background:rgba(36,23,16,.92); font-size:17px; outline:none; }
+  .field textarea { resize:vertical; min-height:110px; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color:var(--amber); box-shadow:0 0 0 3px rgba(243,194,121,.18); }
+  .btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:15px 18px; border:0; border-radius:12px; background:var(--amber); color:var(--bg2); font-weight:800; font-size:17px; cursor:pointer; text-decoration:none; }
+  .btn:active { transform:scale(.985); }
+  .btn:disabled { opacity:.6; }
+  .btn.ghost { background:transparent; color:var(--text); border:1px solid var(--line); font-weight:600; }
+  .msg { min-height:1.3em; margin:10px 0 0; font-size:14px; color:var(--muted); }
+  .msg.bad { color:var(--bad); } .msg.ok { color:var(--ok); }
+  .link { background:none; border:0; padding:0; color:var(--amber); font-weight:600; cursor:pointer; }
+
+  /* app frame */
+  #app { position:fixed; inset:0; display:flex; flex-direction:column; }
+  .view { flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:calc(var(--top) + 14px) 16px calc(var(--bot) + 96px); }
+  .view.frame { padding:0; overflow:hidden; display:flex; flex-direction:column; }
+  .view.frame header { padding:calc(var(--top) + 14px) 16px 10px; }
+  .view.frame iframe { flex:1; width:100%; border:0; background:var(--bg2); margin-bottom:calc(var(--bot) + 76px); }
+  header.top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+  header.top h2 { margin:0; font-size:26px; letter-spacing:-.01em; }
+  header.top .date { color:var(--muted); font-size:14px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; }
+  .avatar { width:42px; height:42px; flex:none; border-radius:50%; border:1px solid var(--line); background:var(--panel2); color:var(--amber); font-weight:800; display:grid; place-items:center; cursor:pointer; }
+
+  .hero { position:relative; border-radius:20px; overflow:hidden; padding:18px; margin-bottom:16px; min-height:220px; display:flex; flex-direction:column; justify-content:flex-end;
+          background:linear-gradient(180deg, rgba(20,12,7,.1) 0%, rgba(20,12,7,.35) 45%, rgba(20,12,7,.9) 100%), url(truck.jpg) 18% 58%/165% auto no-repeat; border:1px solid var(--line); }
+  .hero .k { font-size:12px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--amber); }
+  .hero h3 { margin:4px 0 14px; font-size:21px; line-height:1.2; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { display:inline-flex; align-items:center; gap:7px; padding:9px 13px; border-radius:999px; font-weight:700; font-size:14px; border:1px solid; cursor:pointer; background:rgba(20,12,7,.6); }
+  .chip.y { color:var(--ok); border-color:rgba(111,191,139,.5); } .chip.n { color:var(--bad); border-color:rgba(226,114,91,.55); }
+  .chip.sm { padding:4px 9px; font-size:12px; cursor:default; }
+  .chip svg { width:15px; height:15px; }
+
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px; }
+  .tile { position:relative; display:flex; flex-direction:column; justify-content:space-between; min-height:104px; padding:14px; border-radius:16px; background:var(--panel); border:1px solid var(--line); color:var(--text); text-decoration:none; text-align:left; cursor:pointer; }
+  .tile:active { background:var(--panel2); }
+  .tile .ic { width:34px; height:34px; border-radius:10px; display:grid; place-items:center; background:rgba(243,194,121,.12); color:var(--amber); }
+  .tile .ic svg { width:20px; height:20px; }
+  .tile b { font-size:16px; margin-top:12px; } .tile small { color:var(--muted); font-size:13px; }
+  .tile .done { position:absolute; top:12px; right:12px; width:22px; height:22px; border-radius:50%; background:var(--ok); color:var(--bg2); display:grid; place-items:center; }
+  .tile .done svg { width:14px; height:14px; }
+
+  .stats { display:grid; grid-template-columns:repeat(3, 1fr); gap:10px; margin-bottom:16px; }
+  .stat { padding:13px 12px; border-radius:16px; background:var(--panel); border:1px solid var(--line); }
+  .stat b { display:block; font-size:24px; line-height:1.05; font-variant-numeric:tabular-nums; color:var(--amber); }
+  .stat span { display:block; margin-top:5px; font-size:12px; color:var(--muted); font-weight:600; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:16px; margin-bottom:16px; }
+  .card h4 { margin:0 0 10px; font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:11px 0; border-top:1px solid var(--line); }
+  .row:first-of-type { border-top:0; }
+  .row .nm { font-weight:700; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .row .chips { justify-content:flex-end; gap:5px; }
+  .empty { color:var(--muted); font-size:14px; padding:6px 0; }
+
+  .list a { display:flex; align-items:center; gap:14px; padding:15px; margin-bottom:10px; border-radius:16px; background:var(--panel); border:1px solid var(--line); color:var(--text); text-decoration:none; }
+  .list a:active { background:var(--panel2); }
+  .list .ic { width:44px; height:44px; flex:none; border-radius:12px; display:grid; place-items:center; background:rgba(243,194,121,.12); color:var(--amber); }
+  .list .ic svg { width:24px; height:24px; }
+  .list b { display:block; font-size:17px; } .list small { color:var(--muted); font-size:13.5px; }
+  .list .st { margin-left:auto; flex:none; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  /* tab bar */
+  nav.tabs { position:fixed; left:0; right:0; bottom:0; z-index:20; display:grid; grid-template-columns:repeat(4, 1fr); padding:8px 6px calc(var(--bot) + 8px);
+             background:rgba(20,12,7,.86); backdrop-filter:saturate(1.4) blur(18px); -webkit-backdrop-filter:saturate(1.4) blur(18px); border-top:1px solid var(--line); }
+  nav.tabs button { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 0; background:none; border:0; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.03em; cursor:pointer; }
+  nav.tabs svg { width:25px; height:25px; }
+  nav.tabs button[aria-selected="true"] { color:var(--amber); }
+
+  /* sheet */
+  .scrim { position:fixed; inset:0; z-index:40; background:rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:opacity .25s; }
+  .scrim.on { opacity:1; pointer-events:auto; }
+  .sheet { position:fixed; left:0; right:0; bottom:0; z-index:41; padding:10px 18px calc(var(--bot) + 22px); border-radius:22px 22px 0 0; background:var(--bg2); border-top:1px solid var(--line); transform:translateY(105%); transition:transform .32s cubic-bezier(.2,.8,.2,1); }
+  .sheet.on { transform:none; }
+  .sheet .grab { width:40px; height:5px; border-radius:3px; background:var(--line); margin:0 auto 14px; }
+  .sheet h3 { margin:0 0 2px; font-size:20px; } .sheet p { margin:0 0 16px; color:var(--muted); }
+  .sheet .btn + .btn { margin-top:10px; }
+  .toast { position:fixed; left:50%; bottom:calc(var(--bot) + 92px); z-index:60; transform:translate(-50%, 20px); opacity:0; padding:12px 18px; border-radius:12px; background:var(--panel2); border:1px solid var(--line); font-weight:600; font-size:14px; transition:all .25s; pointer-events:none; }
+  .toast.on { opacity:1; transform:translate(-50%, 0); }
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
+  @media (min-width:700px) { .view { max-width:560px; margin:0 auto; width:100%; } nav.tabs { max-width:560px; margin:0 auto; border-radius:20px 20px 0 0; } }
+</style>
+</head>
+<body>
+
+<div id="splash"><div class="mark"><img src="logo-cream.png" alt="Montney Projects Corp"><div class="pro">PRO</div><div class="bar"><i></i></div></div></div>
+
+<!-- Sign in -->
+<section id="login" hidden>
+  <div class="brand"><img src="logo-cream.png" alt="Montney Projects Corp"></div>
+  <h1>Welcome to MontneyPro</h1>
+  <p class="sub">Sign in with the email your invite was sent to.</p>
+  <form id="loginForm" autocomplete="on">
+    <label class="field"><span>Email</span><input id="liEmail" type="email" name="username" autocomplete="username" inputmode="email" required></label>
+    <label class="field"><span>Password</span><input id="liPass" type="password" name="password" autocomplete="current-password" required></label>
+    <button class="btn" id="liBtn">Sign in</button>
+    <p class="msg" id="liMsg" aria-live="polite"></p>
+  </form>
+  <p style="margin:6px 0 0; font-size:14px"><button class="link" id="forgot" type="button">Forgot your password?</button></p>
+</section>
+
+<!-- App -->
+<div id="app" hidden>
+  <section class="view" id="v-home">
+    <header class="top">
+      <div><div class="date" id="today"></div><h2 id="hello">Hi</h2></div>
+      <button class="avatar" id="avatar" aria-label="Account"></button>
+    </header>
+    <div class="hero" id="todayCard">
+      <div class="k">Today's safety forms</div>
+      <h3 id="todayTitle">Loading...</h3>
+      <div class="chips" id="todayChips"></div>
+    </div>
+    <div class="grid" id="quick"></div>
+    <div class="stats">
+      <div class="stat"><b id="sHours">-</b><span>Hours this pay period</span></div>
+      <div class="stat"><b id="sFlha">-</b><span>FLHAs this period</span></div>
+      <div class="stat"><b id="sRank">-</b><span>FLHA leaderboard</span></div>
+    </div>
+    <div class="card" id="crewCard" hidden><h4>Crew today</h4><div id="crewList"></div></div>
+    <div class="card" id="boardCard"><h4>FLHA leaderboard</h4><div id="board"><p class="empty">Loading...</p></div></div>
+  </section>
+
+  <section class="view" id="v-safety" hidden>
+    <header class="top"><h2>Safety</h2></header>
+    <div class="list" id="formList"></div>
+    <div class="card"><h4>Company</h4>
+      <div class="list" style="margin:0"><a href="../Montney-Safety-Manual-Contents.pdf" target="_blank" rel="noopener"><span class="ic" data-i="book"></span><span><b>Safety manual</b><small>Contents and policies</small></span></a></div>
+    </div>
+  </section>
+
+  <section class="view" id="v-ticket" hidden>
+    <header class="top"><h2>Field ticket</h2></header>
+    <form id="tkGate" hidden>
+      <p style="color:var(--muted); margin-top:0">Enter the crew code once. MontneyPro remembers it.</p>
+      <label class="field"><span>Crew code</span><input id="tk-code" inputmode="numeric" autocomplete="off" required></label>
+      <button class="btn">Unlock field tickets</button>
+      <p class="msg" id="tkGateMsg" aria-live="polite"></p>
+    </form>
+    <form id="tkForm" autocomplete="off" hidden>
+      <div class="seg">
+        <label class="field"><span>Truck #</span><select id="tk-truck" required><option value="">Pick</option><option>001</option><option>002</option><option>003</option><option>004</option><option>005</option><option>006</option><option>009</option><option>Skid steer</option></select></label>
+        <label class="field"><span>Date</span><input type="date" id="tk-date" required></label>
+      </div>
+      <div class="seg">
+        <label class="field"><span>Billable hrs</span><input type="number" id="tk-hours" min="0" max="24" step="0.5" inputmode="decimal" placeholder="Client work"></label>
+        <label class="field"><span>Shop hrs</span><input type="number" id="tk-shop" min="0" max="24" step="0.5" inputmode="decimal" placeholder="Not billed"></label>
+      </div>
+      <label class="field"><span>Client</span><select id="tk-client"><option value="">Pick client</option><option>Mastec-Purnell</option><option>Sundown Oilfield Services</option><option>Inked Energy Services</option><option>Sureline Projects</option><option>Weaver Group</option><option>Excel Projects</option><option>Fit N It Oilfield</option><option>Shop</option></select></label>
+      <div class="seg">
+        <label class="field"><span>Job #</span><input id="tk-job"></label>
+        <label class="field"><span>Supervisor</span><input id="tk-supervisor"></label>
+      </div>
+      <label class="field"><span>Location</span><input id="tk-location" placeholder="LSD or site"></label>
+      <div class="seg">
+        <label class="field"><span>Fitter</span><input id="tk-fitter" list="crewNames" required></label>
+        <label class="field"><span>Helper</span><input id="tk-helper" list="helperNames" placeholder="or No helper" required></label>
+      </div>
+      <datalist id="crewNames"></datalist><datalist id="helperNames"><option value="No helper"></option></datalist>
+      <label class="field" style="display:flex; align-items:center; gap:10px"><input type="checkbox" id="tk-sub" style="width:22px; height:22px; accent-color:var(--amber)"><span style="margin:0">SUB / LOA</span></label>
+      <label class="field"><span>Work scope</span><textarea id="tk-scope" rows="4" required></textarea></label>
+      <button class="btn" id="tkSend">Submit field ticket</button>
+      <p class="msg" id="tkMsg" aria-live="polite"></p>
+    </form>
+    <div class="card" id="tkDone" hidden style="text-align:center; padding:28px 18px">
+      <div style="width:56px; height:56px; margin:0 auto 12px; border-radius:50%; background:var(--ok); color:var(--bg2); display:grid; place-items:center" data-i="check"></div>
+      <h3 style="margin:0 0 6px">Ticket saved</h3><p style="color:var(--muted); margin:0 0 18px" id="tkDoneMsg"></p>
+      <button class="btn" type="button" id="tkAgain">Add another ticket</button>
+    </div>
+  </section>
+
+  <section class="view frame" id="v-hours" hidden>
+    <header class="top" style="margin:0"><h2>Hours &amp; documents</h2></header>
+    <iframe id="portalFrame" title="Hours and documents"></iframe>
+  </section>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-v="home" aria-selected="true"><span data-i="home"></span>Home</button>
+    <button role="tab" data-v="safety"><span data-i="shield"></span>Safety</button>
+    <button role="tab" data-v="ticket"><span data-i="ticket"></span>Ticket</button>
+    <button role="tab" data-v="hours"><span data-i="cal"></span>Hours</button>
+  </nav>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shName">
+  <div class="grab"></div>
+  <h3 id="shName"></h3><p id="shMeta"></p>
+  <a class="btn ghost" href="get.html">Install help</a>
+  <button class="btn ghost" id="signOut" type="button">Sign out</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+(() => {
+  const SUPABASE_URL = "https://nwcbvchcdsbwwnnbtyht.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_JtICuOehqdwzQOm8v0i-SA_qf21Bh0e";   // public key, safe here
+  const TICKETS_URL = "https://script.google.com/macros/s/AKfycbznqXX6MkxGNm8hfhau6KIHJDErE9C9ih_mD_n5FeL3r7AAcC5SfjtePYiV9_Vo1-xaRw/exec";
+  const FORMS = [
+    { form:"FLHA", page:"flha.html", title:"FLHA", sub:"Field Level Hazard Assessment", icon:"shield", owed:() => true },
+    { form:"Pre-Trip", page:"pretrip.html", title:"Pre-Trip", sub:"Daily truck inspection", icon:"truck", owed:c => !!(c && c.driver) },
+    { form:"Toolbox", page:"toolbox.html", title:"Toolbox meeting", sub:"Crew safety meeting record", icon:"users", owed:c => !!(c && c.fitter) }
+  ];
+  const SHORT = { "FLHA":"FLHA", "Pre-Trip":"Pre-Trip", "Toolbox":"Toolbox" };
+
+  const ICONS = {
+    home:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9.5h13V10"/><path d="M10 19.5v-5h4v5"/>',
+    shield:'<path d="M12 3 4.5 6v5.5c0 4.6 3.2 8 7.5 9.5 4.3-1.5 7.5-4.9 7.5-9.5V6L12 3Z"/><path d="m8.8 12.2 2.2 2.2 4.4-4.6"/>',
+    ticket:'<path d="M4 6.5h16v3.2a2.3 2.3 0 0 0 0 4.6v3.2H4v-3.2a2.3 2.3 0 0 0 0-4.6Z"/><path d="M9.5 6.5v11" stroke-dasharray="1.6 2"/>',
+    cal:'<rect x="4" y="5.5" width="16" height="14.5" rx="2.5"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/>',
+    truck:'<path d="M3 7h10.5v9H3z"/><path d="M13.5 10.5h4l3 3.2V16h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/>',
+    users:'<circle cx="9" cy="8.5" r="3"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5"/><circle cx="17" cy="9.5" r="2.3"/><path d="M15.8 14.2c2.3.1 4 1.7 4.6 4.3"/>',
+    check:'<path d="m5 12.5 4.2 4.2L19 7"/>', x:'<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+    book:'<path d="M5 4.5h10.5A3.5 3.5 0 0 1 19 8v11.5H8.5A3.5 3.5 0 0 1 5 16V4.5Z"/><path d="M5 16a3.5 3.5 0 0 1 3.5-3.5H19"/>',
+    trophy:'<path d="M8 4.5h8v4a4 4 0 0 1-8 0v-4Z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 12.5v4M8.5 20h7M9.5 16.5h5"/>'
+  };
+  const svg = n => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`;
+  const paintIcons = root => root.querySelectorAll("[data-i]").forEach(el => { if (!el.firstChild) el.innerHTML = svg(el.dataset.i); });
+  paintIcons(document);
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || "null"); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
+  const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  const fmtH = n => (Math.round(n * 10) / 10).toString();
+  const toast = t => { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2600); };
+  const msg = (id, t, kind) => { $(id).textContent = t || ""; $(id).className = "msg" + (kind ? " " + kind : ""); };
+  const periodOf = d => d.getDate() <= 15 ? { s:new Date(d.getFullYear(), d.getMonth(), 1), e:new Date(d.getFullYear(), d.getMonth(), 15) }
+                                           : { s:new Date(d.getFullYear(), d.getMonth(), 16), e:new Date(d.getFullYear(), d.getMonth() + 1, 0) };
+
+  // service worker = installable app
+  if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+
+  // splash: show briefly on a cold start
+  const started = Date.now();
+  const hideSplash = () => setTimeout(() => $("splash").classList.add("gone"), Math.max(0, 900 - (Date.now() - started)));
+
+  if (!window.supabase) { hideSplash(); $("login").hidden = false; msg("liMsg", "No connection. Check your signal and reopen MontneyPro.", "bad"); return; }
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
+  const S = { user:null, profile:null, admin:false, crew:null, roster:[], view:"home" };
+  const crewNameOf = p => p ? ((p.ticket_name || "").trim() || (p.full_name || "").trim().split(/\s+/)[0] || "").toLowerCase() : "";
+
+  // ---------- auth ----------
+  $("loginForm").addEventListener("submit", async e => {
+    e.preventDefault(); $("liBtn").disabled = true; msg("liMsg", "Signing in...");
+    const { error } = await sb.auth.signInWithPassword({ email:$("liEmail").value.trim(), password:$("liPass").value });
+    $("liBtn").disabled = false; msg("liMsg", error ? "Wrong email or password." : "", error ? "bad" : "");
+  });
+  $("forgot").addEventListener("click", async () => {
+    const email = $("liEmail").value.trim();
+    if (!email) { msg("liMsg", "Type your email above first, then tap this again.", "bad"); return; }
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo:location.origin + "/portal.html" });
+    msg("liMsg", error ? error.message : "If that email has an account, a reset link is on its way.", error ? "bad" : "ok");
+  });
+  $("signOut").addEventListener("click", () => { closeSheet(); sb.auth.signOut(); });
+
+  sb.auth.onAuthStateChange((evt, session) => setTimeout(() => route(session), 0));
+
+  async function route(session) {
+    if (!session) { S.user = null; $("app").hidden = true; $("login").hidden = false; hideSplash(); return; }
+    if (S.user && S.user.id === session.user.id) return;
+    S.user = session.user;
+    const [p, r] = await Promise.all([
+      sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle(),
+      sb.from("crew").select("crew_name,display_name,driver,fitter,active").eq("active", true).order("display_name")
+    ]);
+    S.profile = p.data || null; S.admin = !!(S.profile && S.profile.role === "admin");
+    S.roster = r.data || [];
+    S.crew = S.roster.find(c => c.crew_name === crewNameOf(S.profile)) || null;
+    if (S.crew) store("montney_me", S.crew.display_name);   // safety forms pick this name automatically
+    $("login").hidden = true; $("app").hidden = false;
+    paint(); hideSplash();
+  }
+
+  // ---------- home ----------
+  function paint() {
+    const now = new Date(), name = (S.profile && S.profile.full_name) || (S.crew && S.crew.display_name) || S.user.email;
+    const first = String(name).split(/\s+/)[0], h = now.getHours();
+    $("today").textContent = now.toLocaleDateString("en-CA", { weekday:"long", month:"long", day:"numeric" });
+    $("hello").textContent = (h < 12 ? "Morning, " : h < 17 ? "Afternoon, " : "Evening, ") + first;
+    $("avatar").textContent = String(name).split(/\s+/).map(w => w[0]).join("").slice(0, 2).toUpperCase();
+    $("shName").textContent = name; $("shMeta").textContent = (S.user.email || "") + (S.admin ? " · Office admin" : "");
+    renderSafetyList({}); renderQuick({});
+    loadToday(); loadStats(); fillCrewNames(); setupTicket();
+  }
+
+  const owedFor = c => FORMS.filter(f => f.owed(c));
+  const chip = (f, ok, small) => `<span class="chip ${ok ? "y" : "n"}${small ? " sm" : ""}" ${small ? "" : `data-open="${f.page}"`}>${small ? "" : svg(ok ? "check" : "x")}${esc(SHORT[f.form])}${small ? (ok ? " ✓" : " ✗") : ""}</span>`;
+
+  async function loadToday() {
+    const today = iso(new Date());
+    const { data } = await sb.from("safety_forms").select("crew_name,form").eq("work_date", today);
+    const done = {};
+    (data || []).forEach(r => { (done[r.crew_name] = done[r.crew_name] || new Set()).add(r.form); });
+    const mine = S.crew ? (done[S.crew.crew_name] || new Set()) : new Set();
+    if (S.crew) {
+      const owed = owedFor(S.crew), left = owed.filter(f => !mine.has(f.form)).length;
+      $("todayTitle").textContent = left ? `${left} of ${owed.length} still to send today` : "All done for today. Nice work.";
+      $("todayChips").innerHTML = owed.map(f => chip(f, mine.has(f.form))).join("");
+    } else {
+      $("todayTitle").textContent = S.admin ? "You're signed in as the office" : "Your name isn't on the crew list yet";
+      $("todayChips").innerHTML = S.admin ? "" : '<span style="color:var(--muted); font-size:14px">Ask the office to add you so your forms are tracked.</span>';
+    }
+    renderQuick(mine); renderSafetyList(mine);
+    if (S.admin) {
+      $("crewCard").hidden = false;
+      $("crewList").innerHTML = S.roster.length ? S.roster.map(c => {
+        const d = done[c.crew_name] || new Set();
+        return `<div class="row"><span class="nm">${esc(c.display_name)}</span><span class="chips">${owedFor(c).map(f => chip(f, d.has(f.form), true)).join("")}</span></div>`;
+      }).join("") : '<p class="empty">No crew set up yet.</p>';
+    }
+  }
+  function renderQuick(mine) {
+    const forms = S.crew ? owedFor(S.crew) : FORMS;
+    $("quick").innerHTML = forms.map(f => `<a class="tile" href="${f.page}" data-open="${f.page}"><span class="ic">${svg(f.icon)}</span>${mine.has && mine.has(f.form) ? `<span class="done">${svg("check")}</span>` : ""}<span><b>${esc(f.title)}</b><br><small>${mine.has && mine.has(f.form) ? "Sent today" : "Tap to fill out"}</small></span></a>`).join("")
+      + `<button class="tile" type="button" data-go="ticket"><span class="ic">${svg("ticket")}</span><span><b>Field ticket</b><br><small>End of day hours</small></span></button>`;
+  }
+  function renderSafetyList(mine) {
+    $("formList").innerHTML = FORMS.map(f => {
+      const owes = !S.crew || f.owed(S.crew), sent = mine.has && mine.has(f.form);
+      return `<a href="${f.page}" data-open="${f.page}"><span class="ic">${svg(f.icon)}</span><span><b>${esc(f.title)}</b><small>${esc(f.sub)}${S.crew && !owes ? " · not required for you" : ""}</small></span>
+        <span class="st">${S.crew && owes ? `<span class="chip sm ${sent ? "y" : "n"}">${sent ? "Sent ✓" : "Due ✗"}</span>` : ""}</span></a>`;
+    }).join("");
+  }
+
+  async function loadStats() {
+    const p = periodOf(new Date()), s = iso(p.s), e = iso(p.e), me = S.crew ? S.crew.crew_name : crewNameOf(S.profile);
+    const [hrs, lb] = await Promise.all([
+      me ? sb.from("hours").select("work_date,hours,shop_hours").eq("crew_name", me).gte("work_date", s).lte("work_date", e) : Promise.resolve({ data:[] }),
+      sb.rpc("flha_leaderboard", { p_start:s, p_end:e })
+    ]);
+    const total = (hrs.data || []).reduce((a, r) => a + (Number(r.hours) || 0) + (Number(r.shop_hours) || 0), 0);
+    $("sHours").textContent = fmtH(total);
+    const rows = (lb.data || []).map(r => ({ ...r, pct:r.worked_days ? r.flha_days / r.worked_days : -1 }))
+      .sort((a, b) => b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
+    let rank = 0;
+    const ranked = rows.map(r => ({ ...r, rank:r.worked_days ? ++rank : null }));
+    const mine = ranked.find(r => r.crew_name === me);
+    $("sFlha").textContent = mine && mine.worked_days ? `${mine.flha_days}/${mine.worked_days}` : "-";
+    $("sRank").textContent = mine && mine.rank ? "#" + mine.rank : "-";
+    $("board").innerHTML = ranked.length ? ranked.map(r => {
+      const perfect = r.worked_days && r.flha_days === r.worked_days;
+      return `<div class="row"><span class="nm" style="${r.crew_name === me ? "color:var(--amber)" : ""}">${r.rank ? r.rank + ". " : ""}${perfect ? "🏆 " : ""}${esc(r.display_name)}</span>
+        <span style="font-weight:700; font-variant-numeric:tabular-nums; color:${perfect ? "var(--ok)" : "var(--muted)"}">${r.worked_days ? r.flha_days + " / " + r.worked_days : "No days yet"}</span></div>`;
+    }).join("") : '<p class="empty">No days worked yet this pay period.</p>';
+  }
+
+  // ---------- navigation ----------
+  function go(v) {
+    S.view = v;
+    document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
+    document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === v));
+    if (v === "hours" && !$("portalFrame").src) $("portalFrame").src = "../portal.html?embed=1";
+    if (v === "home" && S.user) { loadToday(); loadStats(); }
+    $("v-" + v).scrollTop = 0;
+  }
+  document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => go(b.dataset.v)));
+  document.addEventListener("click", e => {
+    const t = e.target.closest("[data-go]"); if (t) { e.preventDefault(); go(t.dataset.go); return; }
+    const o = e.target.closest("[data-open]");
+    if (o) { e.preventDefault(); if (S.crew) store("montney_me", S.crew.display_name); location.href = o.dataset.open; }
+  });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && S.user && S.view === "home") { loadToday(); loadStats(); } });
+  addEventListener("pageshow", e => { if (e.persisted && S.user) { loadToday(); loadStats(); } });
+
+  const openSheet = () => { $("scrim").classList.add("on"); $("sheet").classList.add("on"); };
+  const closeSheet = () => { $("scrim").classList.remove("on"); $("sheet").classList.remove("on"); };
+  $("avatar").addEventListener("click", openSheet); $("scrim").addEventListener("click", closeSheet);
+
+  // ---------- field tickets (same Google Sheet as the website) ----------
+  function fillCrewNames() {
+    const names = S.roster.map(c => c.display_name);   // full names; the sheet matches on first name
+    $("crewNames").innerHTML = names.map(n => `<option value="${esc(n)}"></option>`).join("");
+    $("helperNames").innerHTML = '<option value="No helper"></option>' + names.map(n => `<option value="${esc(n)}"></option>`).join("");
+  }
+  let tkCode = "";
+  function showTicketForm() {
+    $("tkGate").hidden = true; $("tkDone").hidden = true; $("tkForm").hidden = false;
+    if (!$("tk-date").value) $("tk-date").value = iso(new Date());
+    const last = store("mp_tk_last") || {};
+    ["truck", "client", "job", "supervisor", "location", "fitter", "helper"].forEach(k => { if (last[k] && !$("tk-" + k).value) $("tk-" + k).value = last[k]; });
+    if (!$("tk-fitter").value && S.crew && S.crew.fitter) $("tk-fitter").value = S.crew.display_name;
+  }
+  function setupTicket() {
+    tkCode = store("mp_tk_code") || "";
+    if (tkCode) showTicketForm(); else { $("tkGate").hidden = false; $("tkForm").hidden = true; }
+  }
+  $("tkGate").addEventListener("submit", e => {
+    e.preventDefault(); const c = $("tk-code").value.trim(); msg("tkGateMsg", "Checking...");
+    fetch(TICKETS_URL + "?pin=" + encodeURIComponent(c)).then(r => r.json()).then(j => {
+      if (!j.ok) { msg("tkGateMsg", "That code isn't right. Check with the office.", "bad"); return; }
+      tkCode = c; store("mp_tk_code", c); $("tk-code").value = ""; msg("tkGateMsg", ""); showTicketForm();
+    }).catch(() => msg("tkGateMsg", "Couldn't reach the sheet. Check your signal and try again.", "bad"));
+  });
+  $("tkForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const v = id => $("tk-" + id).value.trim();
+    const d = { pin:tkCode, date:v("date"), hours:v("hours"), truck:v("truck"), client:v("client"), job:v("job"), supervisor:v("supervisor"), location:v("location"),
+                fitter:v("fitter"), helper:v("helper"), scope:v("scope"), shop:v("shop"), sub:$("tk-sub").checked ? "Yes" : "" };
+    if (!(Number(d.hours) > 0) && !(Number(d.shop) > 0)) { msg("tkMsg", "Enter billable hours, shop hours, or both.", "bad"); return; }
+    if (Number(d.hours) > 0 && (!d.client || d.client === "Shop")) { msg("tkMsg", "Pick the client for the billable hours.", "bad"); return; }
+    if (!(Number(d.hours) > 0)) { d.hours = 0; if (!d.client) d.client = "Shop"; }
+    store("mp_tk_last", { truck:d.truck, client:d.client, job:d.job, supervisor:d.supervisor, location:d.location, fitter:d.fitter, helper:d.helper });
+    const btn = $("tkSend"); btn.disabled = true; btn.textContent = "Sending..."; msg("tkMsg", "");
+    fetch(TICKETS_URL, { method:"POST", body:JSON.stringify(d) }).then(r => r.json()).then(j => {
+      btn.disabled = false; btn.textContent = "Submit field ticket";
+      if (j.error === "code") { store("mp_tk_code", ""); tkCode = ""; $("tkForm").hidden = true; $("tkGate").hidden = false; msg("tkGateMsg", "The crew code changed. Enter the new one.", "bad"); return; }
+      if (!j.saved) { msg("tkMsg", "Not saved. Try again.", "bad"); return; }
+      $("tkDoneMsg").textContent = j.ok ? `${d.hours || d.shop} hours on ${d.date} added to the ${j.tab || d.truck} tab.` : "Saved, but it couldn't be put on your truck's tab. Tell the office so they can move it.";
+      $("tkForm").hidden = true; $("tkDone").hidden = false;
+      ["hours", "shop", "scope"].forEach(k => $("tk-" + k).value = ""); $("tk-sub").checked = false;
+      toast("Field ticket sent");
+    }).catch(() => { btn.disabled = false; btn.textContent = "Submit field ticket"; msg("tkMsg", "Not sent. Your ticket is still filled in. Tap submit again when you have signal.", "bad"); });
+  });
+  $("tkAgain").addEventListener("click", () => { $("tk-date").value = ""; showTicketForm(); $("v-ticket").scrollTop = 0; });
+
+  if (new URLSearchParams(location.search).get("tab")) go(new URLSearchParams(location.search).get("tab"));
+})();
+</script>
+</body>
+</html>
