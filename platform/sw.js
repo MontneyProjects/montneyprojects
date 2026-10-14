@@ -1,6 +1,6 @@
 // Steelcap Pro service worker: installable app, network-first so updates show right away, plus phone pings.
-const CACHE = "steelcap-v5";
-const SHELL = ["./", "index.html", "styles.css", "js/core.js", "js/main.js", "js/views.js", "js/admin.js", "js/chat.js", "js/ai.js", "js/push.js", "manifest.webmanifest", "icon-192.png"];
+const CACHE = "steelcap-v6";
+const SHELL = ["./", "index.html", "styles.css", "js/core.js", "js/main.js", "js/views.js", "js/admin.js", "js/chat.js", "js/ai.js", "js/push.js", "manifest.webmanifest", "icon-192.png", "favicon.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {

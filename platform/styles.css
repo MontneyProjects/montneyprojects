@@ -3,6 +3,11 @@
     --gold:#e3b873; --gold2:#f3d3a0; --acc-rgb:227,184,115; --txt-rgb:243,235,223; --bg-rgb:18,11,7; --on-acc:#120b07;
     --ok:#6fbf8a; --ok2:#8fd3a6; --bad:#e07a5f; --bad2:#f0a08a; color-scheme:dark;
   }
+  [data-theme="steelcap"] {
+    --bg:#0b0e10; --bg2:#12171b; --text:#e9ecef; --soft:#b4bcc3; --muted:#949da5; --dim:#6b747c; --faint:#474f56; --chip:#1f262c; --glow:#0e2629;
+    --gold:#00c2b2; --gold2:#3ad6c8; --acc-rgb:0,194,178; --txt-rgb:233,236,239; --bg-rgb:11,14,16; --on-acc:#0b0e10;
+    --ok:#5fc48a; --ok2:#86d9a9; --bad:#f06a5b; --bad2:#f5998d; color-scheme:dark;
+  }
   [data-theme="steel"] {
     --bg:#0e1215; --bg2:#151b1f; --text:#eef2f4; --soft:#b4bec5; --muted:#97a2aa; --dim:#6d7880; --faint:#4b555c; --chip:#1f272d; --glow:#1d2a33;
     --gold:#ff8a3d; --gold2:#ffb07a; --acc-rgb:255,138,61; --txt-rgb:238,242,244; --bg-rgb:14,18,21; --on-acc:#0e1215;
@@ -429,6 +434,7 @@
   .wrap { max-width:520px; margin:0 auto; width:100%; }
   .gate { overflow-y:auto; }
   .gate .brandmark { display:flex; align-items:center; gap:12px; }
+  .gate .brandmark img.logo-img { width:46px; height:46px; border-radius:12px; display:block; }
   .gate .brandmark .logo-sq { width:46px; height:46px; border-radius:14px; background:var(--gold); color:var(--on-acc); display:grid; place-items:center; font-weight:800; font-size:20px; }
   .gate .brandmark b { font-size:20px; font-weight:800; letter-spacing:-.01em; }
   .gate h1 { margin:28px 0 8px; font-size:34px; line-height:1.06; font-weight:800; letter-spacing:-.03em; }
@@ -438,7 +444,7 @@
   .steps i { flex:1; height:4px; border-radius:2px; background:var(--line2); }
   .steps i.on { background:var(--gold); }
   .stepno { font-size:12px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); margin-top:10px; }
-  .themes { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin-top:6px; }
+  .themes { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; margin-top:6px; }
   .themecard { border-radius:18px; border:2px solid var(--line2); padding:10px; background:none; text-align:left; color:var(--text); }
   .themecard[aria-pressed="true"] { border-color:var(--gold); }
   .themecard .sw { height:70px; border-radius:12px; display:flex; flex-direction:column; justify-content:flex-end; padding:8px; gap:4px; }

@@ -17,7 +17,7 @@ const started = Date.now();
 const hideSplash = () => setTimeout(() => $("splash").classList.add("gone"), Math.max(0, 700 - (Date.now() - started)));
 const gate = $("gate");
 const showGate = html => { $("app").hidden = true; gate.hidden = false; gate.innerHTML = `<div class="wrap">${html}</div>`; gate.scrollTop = 0; hideSplash(); };
-const brand = () => `<div class="brandmark"><span class="logo-sq">${esc(CONFIG.product[0])}</span><span><b>${esc(CONFIG.product)}</b><small class="tagline">${esc(CONFIG.tagline)}</small></span></div>`;
+const brand = () => `<div class="brandmark"><img class="logo-img" src="icon-192.png" alt=""><span><b>${esc(CONFIG.product)}</b><small class="tagline">${esc(CONFIG.tagline)}</small></span></div>`;
 
 // remember what they were doing if they have to confirm their email first
 const urlJoin = new URLSearchParams(location.search).get("join");
@@ -25,7 +25,7 @@ if (urlJoin) store("fp_intent", { kind: "join", code: urlJoin.toUpperCase() });
 
 // ---------- signed-out screens ----------
 function welcome() {
-  applyTheme("espresso");
+  applyTheme("steelcap");
   showGate(`${brand()}
     <h1>Run your whole crew from your phone.</h1>
     <p class="lead">Safety forms, truck inspections, field tickets, dispatch, crew chat and the books. Built for oilfield crews of 1–20.</p>
@@ -175,9 +175,9 @@ export async function wizard(n, opts = {}) {
     return;
   }
   if (n === 2) {
-    let theme = co.theme || "espresso", accent = co.accent || "", logoFile = null;
-    const THEMES = [["espresso", "Espresso", "#120b07", "#e3b873", "#f3ebdf"], ["steel", "Steel", "#0e1215", "#ff8a3d", "#eef2f4"], ["daylight", "Daylight", "#f4f2ee", "#1f4fd1", "#1a1d22"]];
-    const SW = ["", "#e3b873", "#ff8a3d", "#f2c230", "#3fb36b", "#2f9bd6", "#1f4fd1", "#c8432b", "#9b6bd6"];
+    let theme = co.theme || "steelcap", accent = co.accent || "", logoFile = null;
+    const THEMES = [["steelcap", "Steelcap", "#0b0e10", "#00c2b2", "#e9ecef"], ["espresso", "Espresso", "#120b07", "#e3b873", "#f3ebdf"], ["steel", "Steel", "#0e1215", "#ff8a3d", "#eef2f4"], ["daylight", "Daylight", "#f4f2ee", "#1f4fd1", "#1a1d22"]];
+    const SW = ["", "#00c2b2", "#e3b873", "#ff8a3d", "#f2c230", "#3fb36b", "#2f9bd6", "#1f4fd1", "#c8432b", "#9b6bd6"];
     showGate(`${stepHead(2, "Make it yours", "Your logo and colours show up for your whole crew.")}
       <form id="wz"><div class="label">Logo</div>
       <button type="button" class="logodrop" id="wzLogo">${co.logo_path ? `<img src="${esc(logoUrl(co.logo_path))}" alt="Logo">` : `${svg("camera")} Add your logo`}</button>

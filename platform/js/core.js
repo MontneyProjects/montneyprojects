@@ -71,7 +71,7 @@ export const svg = (n, w) => `<svg viewBox="0 0 24 24" fill="none" stroke="curre
 const hexRgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ""); if (!m) return null; const n = parseInt(m[1], 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
 export function applyTheme(theme, accent) {
   const r = document.documentElement;
-  r.dataset.theme = theme || "espresso";
+  r.dataset.theme = theme || "steelcap";
   const rgb = hexRgb(accent);
   if (rgb) {
     r.style.setProperty("--gold", accent); r.style.setProperty("--gold2", accent); r.style.setProperty("--acc-rgb", rgb.join(","));
@@ -79,7 +79,7 @@ export function applyTheme(theme, accent) {
     r.style.setProperty("--on-acc", lum > 0.6 ? "#111111" : "#ffffff");
   } else ["--gold", "--gold2", "--acc-rgb", "--on-acc"].forEach(p => r.style.removeProperty(p));
   const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.content = getComputedStyle(r).getPropertyValue("--bg").trim() || "#120b07";
+  if (meta) meta.content = getComputedStyle(r).getPropertyValue("--bg").trim() || "#0b0e10";
 }
 export const logoUrl = path => path ? `${CONFIG.url}/storage/v1/object/public/logos/${path}` : "";
 
