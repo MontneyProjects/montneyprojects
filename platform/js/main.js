@@ -209,11 +209,11 @@ export async function wizard(n, opts = {}) {
     const ps = co.pay_schedule || { type: "semi-monthly" };
     showGate(`${stepHead(3, "Pay schedule", "So the crew can see paydays and cut-offs on their calendar, and stop asking you.")}
       <form id="wz"><label class="field"><span>How often do you pay?</span><select class="plain" id="wzType">
-        <option value="semi-monthly">Twice a month (cut-offs 15th and month end)</option><option value="biweekly">Every two weeks</option><option value="weekly">Every week</option></select></label>
+        <option value="semi-monthly">Twice a month</option><option value="biweekly">Every two weeks</option><option value="weekly">Every week</option></select></label>
       <div id="wzSemi"><label class="field"><span>Paydays</span><select class="plain" id="wzDays"><option value="1,15">1st and 15th</option><option value="15,0">15th and last day of the month</option><option value="5,20">5th and 20th</option><option value="10,25">10th and 25th</option></select></label></div>
       <div id="wzBi" hidden><label class="field"><span>A recent payday</span><input type="date" id="wzAnchor"></label>
       <label class="field"><span>Cut-off is how many days before payday?</span><input type="number" id="wzLag" min="0" max="20" value="5" inputmode="numeric"></label></div>
-      <p class="msg" style="margin-top:0">Paydays that land on a weekend or stat holiday move to the business day before.</p>
+      <p class="msg" style="margin-top:0">Twice a month means cut-offs on the 15th and the last day of the month. Paydays that land on a weekend or stat holiday move to the business day before.</p>
       ${nav(3)}</form>`);
     $("wzType").value = ps.type || "semi-monthly";
     if (ps.paydays) $("wzDays").value = ps.paydays.join(",");

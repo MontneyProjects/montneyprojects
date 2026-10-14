@@ -448,6 +448,7 @@
   .swatch { width:44px; height:44px; border-radius:50%; border:3px solid transparent; box-shadow:0 0 0 1px var(--line2); }
   .swatch[aria-pressed="true"] { border-color:var(--text); }
   .logodrop { margin-top:6px; height:120px; border-radius:18px; border:1.5px dashed rgba(var(--acc-rgb),.45); background:rgba(var(--acc-rgb),.05); display:flex; align-items:center; justify-content:center; gap:10px; color:var(--gold); font-weight:800; width:100%; overflow:hidden; }
+  .logodrop svg { width:22px; height:22px; flex:none; }
   .logodrop img { max-height:96px; max-width:80%; object-fit:contain; }
   .rowlist { margin-top:8px; }
   .rowitem { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); }
@@ -492,7 +493,8 @@
   .co-name { font-size:18px; font-weight:800; letter-spacing:-.01em; }
   .home-hero { position:absolute; left:0; right:0; top:0; height:calc(var(--top) + 360px); pointer-events:none; background:radial-gradient(120% 90% at 80% 0%, rgba(var(--acc-rgb),.22), transparent 60%), linear-gradient(180deg, var(--glow), var(--bg) 92%); }
   .greet { margin-top:110px; }
-  .inv-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 0; border-bottom:1px solid var(--line); }
+  .inv-row { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:14px 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  .inv-row > span:first-child { flex:1 1 220px; min-width:0; }
   .inv-row b { font-weight:800; } .inv-row small { display:block; color:var(--muted); font-weight:600; font-size:12px; }
   .banner { margin-top:16px; border-radius:16px; padding:14px 16px; background:rgba(var(--acc-rgb),.10); border:1px solid rgba(var(--acc-rgb),.30); font-size:14px; line-height:1.45; color:var(--soft); }
   .banner b { color:var(--text); }

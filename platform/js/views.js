@@ -69,7 +69,7 @@ view("home", { cls: "", async render(main) {
   const tiles = dailyTemplates().map(tp => ({ label: tp.kind === "pretrip" ? "Pre-Trip" : tp.kind === "toolbox" ? "Toolbox" : tp.name, done: done.has(tp.id), go: "form", p: { id: tp.id } }));
   tiles.push({ label: "Ticket", done: tkToday, go: "ticket", p: {} });
   const el = $("hTiles"); el.className = "tiles" + (tiles.length === 2 ? " two" : "");
-  el.style.gridTemplateColumns = `repeat(${Math.min(tiles.length, 4)}, minmax(0,1fr))`;
+  el.style.gridTemplateColumns = `repeat(${tiles.length === 4 ? 2 : Math.min(tiles.length, 3)}, minmax(0,1fr))`;
   el.innerHTML = tiles.map(x => `<button class="ftile${x.done ? " done" : ""}" type="button" data-go="${x.go}" data-p='${esc(JSON.stringify(x.p))}'>${svg(x.done ? "check" : "plus", x.done ? 2.8 : 1.9)}<span><b>${esc(x.label)}</b><small>${x.done ? "Done" : "To do"}</small></span></button>`).join("");
   const left = tiles.filter(x => !x.done).length;
   $("hSub").textContent = left ? `${left} thing${left > 1 ? "s" : ""} left for today.` : "All caught up today. Nice work.";
