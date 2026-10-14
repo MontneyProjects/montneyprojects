@@ -2,7 +2,8 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 
 export const CONFIG = {
-  product: "Steelcap Pro",            // product name: change here and in index.html <title>
+  product: "Steelcap Pro",
+  tagline: "Built for the field",            // product name: change here and in index.html <title>
   url: "https://hsyscwheyixsxzqahvbr.supabase.co",
   key: "sb_publishable_fonqS_pw5_MOpi-Hvbs24A_N_NA5-TU",   // public key, safe in the browser
   vapid: "BFPgfyJrT6phvRD61mehf8KxxW6F9UFhAKtn_Q9gBbNNcZQ6S6lZYOlRZSC9EAJxBpjGaztQdYgJz4iFyHqFMos",   // public push key, safe in the browser

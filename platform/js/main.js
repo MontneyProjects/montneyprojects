@@ -6,6 +6,7 @@ import { refreshPush } from "./push.js";
 
 document.title = CONFIG.product;
 $("splashName").textContent = CONFIG.product.toUpperCase();
+if ($("splashTag")) $("splashTag").textContent = CONFIG.tagline;
 const paint = root => root.querySelectorAll("[data-i]").forEach(el => { if (!el.querySelector("svg")) el.insertAdjacentHTML("afterbegin", svg(el.dataset.i)); });
 paint(document);
 new MutationObserver(() => paint(document)).observe(document.body, { childList: true, subtree: true });
@@ -16,7 +17,7 @@ const started = Date.now();
 const hideSplash = () => setTimeout(() => $("splash").classList.add("gone"), Math.max(0, 700 - (Date.now() - started)));
 const gate = $("gate");
 const showGate = html => { $("app").hidden = true; gate.hidden = false; gate.innerHTML = `<div class="wrap">${html}</div>`; gate.scrollTop = 0; hideSplash(); };
-const brand = () => `<div class="brandmark"><span class="logo-sq">${esc(CONFIG.product[0])}</span><b>${esc(CONFIG.product)}</b></div>`;
+const brand = () => `<div class="brandmark"><span class="logo-sq">${esc(CONFIG.product[0])}</span><span><b>${esc(CONFIG.product)}</b><small class="tagline">${esc(CONFIG.tagline)}</small></span></div>`;
 
 // remember what they were doing if they have to confirm their email first
 const urlJoin = new URLSearchParams(location.search).get("join");
