@@ -663,7 +663,7 @@
 
   <section class="view" id="v-exp" hidden>
     <div class="pagehead"><div><div class="eyebrow">Bookkeeping</div><h1 class="h1">Company receipts</h1></div><button class="back" type="button" data-go="home" aria-label="Back" data-i="left"></button></div>
-    <p style="margin:10px 0 0; color:var(--soft); font-size:14px">Snap it, check it, save it. Every night it goes into QuickBooks as an expense with the receipt attached.</p>
+    <p style="margin:10px 0 0; color:var(--soft); font-size:14px">Snap it, check it, save it. Within the hour it goes into QuickBooks as an expense with the receipt attached.</p>
     <button class="shot" type="button" id="eShot"><span data-i="camera"></span>Snap or upload a receipt<small>Photo or PDF</small></button>
     <input type="file" id="eFile" accept="image/*,application/pdf" hidden>
     <div class="reading" id="eReading" hidden><i></i><span>Reading the receipt...</span></div>
@@ -1337,7 +1337,7 @@
     const { error } = await sb.from("expenses").insert(row);
     $("eSave").disabled = false;
     if (error) { msg("eMsg", "Didn't save. Try again.", "bad"); return; }
-    toast("Receipt saved 🧾"); msg("eMsg", "Saved. It goes into QuickBooks tonight.", "ok");
+    toast("Receipt saved 🧾"); msg("eMsg", "Saved. It goes into QuickBooks within the hour.", "ok");
     E.file = null; ["eVendor", "eTotal", "eGst", "eNote"].forEach(id => $(id).value = ""); $("ePersonal").checked = false;
     $("eShot").innerHTML = `${svg("camera")}Snap or upload a receipt<small>Photo or PDF</small>`;
     loadExp();
@@ -1346,9 +1346,9 @@
     if (!S.admin) return;
     const { data } = await sb.from("expenses").select("*").order("created_at", { ascending:false }).limit(60);
     const rows = data || [], waiting = rows.filter(r => r.qbo_status === "pending").length, bad = rows.filter(r => r.qbo_status === "error").length;
-    $("expCounts").innerHTML = waiting || bad ? `${waiting ? `<span style="color:var(--gold)">${waiting} waiting for tonight</span>` : ""}${bad ? `<span style="color:var(--bad2)">${bad} need a look</span>` : ""}` : "Snap a company receipt";
+    $("expCounts").innerHTML = waiting || bad ? `${waiting ? `<span style="color:var(--gold)">${waiting} going in within the hour</span>` : ""}${bad ? `<span style="color:var(--bad2)">${bad} need a look</span>` : ""}` : "Snap a company receipt";
     if (countOnly) return;
-    const st = r => r.qbo_status === "posted" ? `<span class="tag ok">In QuickBooks</span>` : r.qbo_status === "error" ? `<span class="tag bad" title="${esc(r.qbo_error || "")}">Needs a look</span>` : `<span class="tag warn">Tonight</span>`;
+    const st = r => r.qbo_status === "posted" ? `<span class="tag ok">In QuickBooks</span>` : r.qbo_status === "error" ? `<span class="tag bad" title="${esc(r.qbo_error || "")}">Needs a look</span>` : `<span class="tag warn">Within the hour</span>`;
     $("eList").innerHTML = rows.length ? rows.map(r => `<div class="frow"><span class="noimg">${svg(r.receipt_path ? "file" : "chev")}</span><span class="t"><b>${esc(r.vendor || "Receipt")}</b><small>${esc(new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric" }))} · ${esc(r.category)}${r.paid_personally ? " · paid personally" : ""}${r.qbo_status === "error" && r.qbo_error ? " · " + esc(r.qbo_error.slice(0, 80)) : ""}</small></span><span style="text-align:right"><span class="amt">${money(r.total)}</span><br>${st(r)}</span></div>`).join("") : '<p class="empty">No receipts yet. Start snapping.</p>';
   }
 
