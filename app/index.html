@@ -123,7 +123,7 @@
   .sheet.on { transform:none; }
   .sheet .grab { width:40px; height:5px; border-radius:3px; background:var(--line); margin:0 auto 14px; }
   .sheet h3 { margin:0 0 2px; font-size:20px; } .sheet p { margin:0 0 16px; color:var(--muted); }
-  .sheet .btn + .btn { margin-top:10px; }
+  .sheet .btn + .btn, #loginForm .btn + .btn { margin-top:10px; }
   .toast { position:fixed; left:50%; bottom:calc(var(--bot) + 92px); z-index:60; transform:translate(-50%, 20px); opacity:0; padding:12px 18px; border-radius:12px; background:var(--panel2); border:1px solid var(--line); font-weight:600; font-size:14px; transition:all .25s; pointer-events:none; }
   .toast.on { opacity:1; transform:translate(-50%, 0); }
   @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
@@ -138,10 +138,11 @@
 <section id="login" hidden>
   <div class="brand"><img src="logo-cream.png" alt="Montney Projects Corp"></div>
   <h1>Welcome to MontneyPro</h1>
-  <p class="sub">Sign in with the email your invite was sent to.</p>
+  <p class="sub" id="liSub">Sign in with the email your invite was sent to.</p>
   <form id="loginForm" autocomplete="on">
     <label class="field"><span>Email</span><input id="liEmail" type="email" name="username" autocomplete="username" inputmode="email" required></label>
     <label class="field"><span>Password</span><input id="liPass" type="password" name="password" autocomplete="current-password" required></label>
+    <button class="btn" id="liFace" type="button" hidden>Sign in with Face ID</button>
     <button class="btn" id="liBtn">Sign in</button>
     <p class="msg" id="liMsg" aria-live="polite"></p>
   </form>
@@ -291,10 +292,39 @@
   const crewNameOf = p => p ? ((p.ticket_name || "").trim() || (p.full_name || "").trim().split(/\s+/)[0] || "").toLowerCase() : "";
 
   // ---------- auth ----------
-  $("loginForm").addEventListener("submit", async e => {
-    e.preventDefault(); $("liBtn").disabled = true; msg("liMsg", "Signing in...");
-    const { error } = await sb.auth.signInWithPassword({ email:$("liEmail").value.trim(), password:$("liPass").value });
-    $("liBtn").disabled = false; msg("liMsg", error ? "Wrong email or password." : "", error ? "bad" : "");
+  // Signed out after 15 minutes of no use. Face ID signs back in through the phone's saved password.
+  const IDLE_MS = 15 * 60 * 1000;
+  const lastActive = () => Number(store("mp_last_active") || 0);
+  const touch = () => store("mp_last_active", Date.now());
+  const expired = () => lastActive() > 0 && Date.now() - lastActive() > IDLE_MS;
+  ["touchstart", "click", "keydown", "scroll"].forEach(ev => addEventListener(ev, () => { if (S.user) touch(); }, { passive:true, capture:true }));
+  function idleCheck() { if (S.user && expired()) { closeSheet(); sb.auth.signOut(); } }
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) idleCheck(); });
+  addEventListener("pageshow", idleCheck);
+  setInterval(idleCheck, 30000);
+
+  const savedEmail = store("mp_email");
+  if (savedEmail) { $("liEmail").value = savedEmail; $("liFace").hidden = false; $("liBtn").classList.add("ghost"); $("liSub").textContent = "Tap Face ID, then tap your saved password above the keyboard."; }
+  $("liFace").addEventListener("click", () => { $("liPass").value = ""; $("liPass").focus(); });
+
+  let signingIn = false;
+  async function signIn() {
+    if (signingIn) return; signingIn = true;
+    $("liBtn").disabled = true; msg("liMsg", "Signing in...");
+    const email = $("liEmail").value.trim();
+    touch();
+    const { error } = await sb.auth.signInWithPassword({ email, password:$("liPass").value });
+    if (!error) store("mp_email", email);
+    $("liBtn").disabled = false; signingIn = false;
+    msg("liMsg", error ? "Wrong email or password." : "", error ? "bad" : "");
+  }
+  $("loginForm").addEventListener("submit", e => { e.preventDefault(); signIn(); });
+  // when the phone fills the saved password (Face ID), sign in right away
+  let prevLen = 0;
+  $("liPass").addEventListener("input", () => {
+    const len = $("liPass").value.length;
+    if (len - prevLen > 1 && $("liEmail").value.trim()) { $("liPass").blur(); signIn(); }
+    prevLen = len;
   });
   $("forgot").addEventListener("click", async () => {
     const email = $("liEmail").value.trim();
@@ -307,7 +337,9 @@
   sb.auth.onAuthStateChange((evt, session) => setTimeout(() => route(session), 0));
 
   async function route(session) {
-    if (!session) { S.user = null; $("app").hidden = true; $("login").hidden = false; hideSplash(); return; }
+    if (!session) { S.user = null; $("liPass").value = ""; $("app").hidden = true; $("login").hidden = false; hideSplash(); return; }
+    if (expired()) { sb.auth.signOut(); return; }
+    touch();
     if (S.user && S.user.id === session.user.id) return;
     S.user = session.user;
     const [p, r] = await Promise.all([
@@ -401,6 +433,7 @@
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
     document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === v));
     if (v === "hours" && !$("portalFrame").src) $("portalFrame").src = "../portal.html?embed=1";
+    $("portalFrame").onload = () => { try { ["touchstart","click","keydown","scroll"].forEach(ev => $("portalFrame").contentWindow.addEventListener(ev, touch, { passive:true, capture:true })); } catch (e) {} };
     if (v === "home" && S.user) { loadToday(); loadStats(); }
     $("v-" + v).scrollTop = 0;
   }

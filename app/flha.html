@@ -1469,5 +1469,6 @@ loadCrew(document.getElementById("workerName"));
 <script>
 (function(){ var d=document.getElementById("date"); if(d && !d.value){ var t=new Date(); d.value=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0"); } })();
 </script>
+<script>/* MontneyPro: counts as activity so the app does not sign out mid-form */(function(){function t(){try{localStorage.setItem("mp_last_active",String(Date.now()))}catch(e){}}t();["touchstart","click","keydown","scroll"].forEach(function(e){addEventListener(e,t,{passive:true,capture:true})});})();</script>
 </body>
 </html>
