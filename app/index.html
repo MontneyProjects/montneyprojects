@@ -318,6 +318,15 @@
   .seen .dots i { width:16px; height:16px; border-radius:50%; margin-left:-5px; display:grid; place-items:center; font-style:normal; font-size:7px; font-weight:800; background:var(--line); color:var(--text); box-shadow:0 0 0 1.5px var(--bg); }
   .seen .dots i:first-child { margin-left:0; }
   .seen .lbl { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .msgs { touch-action:manipulation; }
+  .rx { display:flex; flex-wrap:wrap; gap:4px; margin:-8px 6px 0; position:relative; z-index:1; }
+  .m.me .rx { justify-content:flex-end; }
+  .rxp { display:inline-flex; align-items:center; gap:3px; height:24px; padding:0 8px; border-radius:12px; border:1.5px solid var(--bg); background:var(--surf2); color:var(--text); font:inherit; font-size:12px; font-weight:800; line-height:1; cursor:pointer; }
+  .rxp.mine { background:rgba(227,184,115,.22); border-color:var(--gold); }
+  .rxp .e { font-size:13px; }
+  .rxrow { display:flex; justify-content:center; gap:14px; margin:4px 0 12px; }
+  .rxrow button { width:58px; height:58px; border-radius:50%; border:1.5px solid var(--line); background:var(--surf2); font-size:28px; line-height:1; cursor:pointer; }
+  .rxrow button[aria-pressed="true"] { border-color:var(--gold); background:rgba(227,184,115,.22); }
   .seenhd { font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin:14px 4px 4px; }
   .pick .when { margin-left:auto; font-size:12px; font-weight:600; color:var(--muted); }
   .pick.notyet { color:var(--muted); }
@@ -734,6 +743,7 @@
 </div>
 <div class="sheet acts-list" id="msgSheet" role="dialog" aria-modal="true" aria-label="Message options">
   <div class="grab"></div>
+  <div class="rxrow" id="maRx"><button type="button" data-react="heart" aria-label="Heart">❤️</button><button type="button" data-react="like" aria-label="Like">👍</button></div>
   <button class="btn ghost" type="button" id="maSeen">Seen by</button>
   <button class="btn ghost" type="button" id="maCopy">Copy text</button>
   <button class="btn ghost" type="button" id="maPin">Pin to top of chat</button>
@@ -1599,7 +1609,7 @@
   });
 
   // ---------- chat ----------
-  const C = { people:[], byId:{}, threads:[], open:null, msgs:[], urls:{}, chan:null, pending:[], sel:null, mode:"dm" };
+  const C = { people:[], byId:{}, threads:[], open:null, msgs:[], urls:{}, chan:null, pending:[], sel:null, mode:"dm", rx:{} };
   const SHEETS = ["newSheet", "infoSheet", "msgSheet", "pushSheet", "seenSheet"];
   function openOnly(id) { SHEETS.forEach(x => $(x).classList.toggle("on", x === id)); $("scrim").classList.add("on"); }
   function closeAll() { SHEETS.forEach(x => $(x).classList.remove("on")); if (!$("sheet").classList.contains("on") && !$("bioSheet").classList.contains("on")) $("scrim").classList.remove("on"); }
@@ -1615,6 +1625,8 @@
     C.chan = sb.channel("chat-" + S.user.id)
       .on("postgres_changes", { event:"INSERT", schema:"public", table:"chat_messages" }, p => onNewMessage(p.new))
       .on("postgres_changes", { event:"UPDATE", schema:"public", table:"chat_members" }, p => onMemberUpdate(p.new))
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"chat_reactions" }, p => onReaction(p.new, true))
+      .on("postgres_changes", { event:"DELETE", schema:"public", table:"chat_reactions" }, p => onReaction(p.old, false))
       .on("postgres_changes", { event:"DELETE", schema:"public", table:"chat_messages" }, p => { if (C.open && p.old && p.old.id) { C.msgs = C.msgs.filter(m => m.id !== p.old.id); renderMsgs(); } loadThreads(); })
       .subscribe();
   }
@@ -1636,17 +1648,19 @@
   async function openThread(id) {
     if (!C.threads.find(t => t.id === id)) await loadThreads();
     const t = C.threads.find(x => x.id === id); if (!t) { toast("That chat isn't available"); return; }
-    C.open = t; C.msgs = []; C.pending = []; renderTray();
+    C.open = t; C.msgs = []; C.pending = []; C.rx = {}; renderTray();
     go("thread"); C.open = t;
     $("thTitle").textContent = t.title || "Chat";
     $("thAv").className = "av" + (t.kind === "group" ? " grp" : ""); $("thAv").innerHTML = t.kind === "group" ? svg("users") : esc(initials(t.title));
     $("msgs").innerHTML = '<p class="empty" style="text-align:center">Loading...</p>';
-    const [m, mem] = await Promise.all([
+    const [m, mem, rxq] = await Promise.all([
       sb.from("chat_messages").select("*").eq("thread_id", id).order("created_at", { ascending:false }).limit(150),
-      sb.from("chat_members").select("user_id,muted,last_read_at").eq("thread_id", id)
+      sb.from("chat_members").select("user_id,muted,last_read_at").eq("thread_id", id),
+      sb.from("chat_reactions").select("message_id,user_id,kind").eq("thread_id", id)
     ]);
     if (!C.open || C.open.id !== id) return;
     C.members = mem.data || [];
+    (rxq.data || []).forEach(r => (C.rx[r.message_id] = C.rx[r.message_id] || []).push(r));
     $("thSub").textContent = t.kind === "group" ? C.members.length + " people" + (t.muted ? " · muted" : "") : (t.muted ? "Muted" : "Private");
     C.msgs = (m.data || []).reverse();
     await signUrls(C.msgs);
@@ -1705,12 +1719,44 @@
       const lastOfRun = !next || next.sender_id !== m.sender_id || iso(new Date(next.created_at)) !== d || new Date(next.created_at) - new Date(m.created_at) > 5 * 60000;
       const links = (m.body || "").match(URL_RE) || [];
       const parts = (m.attachments || []).map(a => attHtml(a, mine)).join("") + links.map(linkCard).join("") + (m.body ? `<div class="bub">${linkify(m.body)}</div>` : "");
-      html += `<div class="m${mine ? " me" : ""}${m.pending ? " sending" : ""}" data-mid="${m.id || ""}">${!mine && group ? `<span class="av${lastOfRun ? "" : " sp"}">${esc(initials(nameOf(m.sender_id)))}</span>` : ""}<div class="col">${!mine && group && firstOfRun ? `<div class="who">${esc(nameOf(m.sender_id))}</div>` : ""}${parts}${lastOfRun ? `<span class="tm">${m.pending ? "Sending..." : timeOf(m.created_at).replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/, "") || timeOf(m.created_at)}</span>` : ""}${m.id && m.id === lastMineId ? receiptHtml(m) : ""}</div></div>`;
+      html += `<div class="m${mine ? " me" : ""}${m.pending ? " sending" : ""}" data-mid="${m.id || ""}">${!mine && group ? `<span class="av${lastOfRun ? "" : " sp"}">${esc(initials(nameOf(m.sender_id)))}</span>` : ""}<div class="col">${!mine && group && firstOfRun ? `<div class="who">${esc(nameOf(m.sender_id))}</div>` : ""}${parts}${m.id ? rxHtml(m.id) : ""}${lastOfRun ? `<span class="tm">${m.pending ? "Sending..." : timeOf(m.created_at).replace(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/, "") || timeOf(m.created_at)}</span>` : ""}${m.id && m.id === lastMineId ? receiptHtml(m) : ""}</div></div>`;
       prev = m;
     });
     box.innerHTML = html;
     if (jump || atBottom) { box.scrollTop = box.scrollHeight; box.querySelectorAll("img,video").forEach(el => el.addEventListener("load", () => { if (jump || atBottom) box.scrollTop = box.scrollHeight; }, { once:true })); }
   }
+  // reactions: heart or thumbs-up on any message
+  const RX = { heart:"❤️", like:"👍" };
+  const hasRx = (mid, kind) => (C.rx[mid] || []).some(r => r.user_id === S.user.id && r.kind === kind);
+  function rxHtml(mid) {
+    const list = C.rx[mid] || []; if (!list.length) return "";
+    return `<div class="rx">${Object.keys(RX).map(k => { const n = list.filter(r => r.kind === k).length; return n ? `<button class="rxp${hasRx(mid, k) ? " mine" : ""}" type="button" data-rxm="${mid}" data-rxk="${k}" aria-label="${k === "heart" ? "Heart" : "Like"} ${n}"><span class="e">${RX[k]}</span>${n}</button>` : ""; }).join("")}</div>`;
+  }
+  async function toggleRx(mid, kind) {
+    if (!C.open || !mid) return;
+    const on = hasRx(mid, kind), list = C.rx[mid] = C.rx[mid] || [];
+    if (on) C.rx[mid] = list.filter(r => !(r.user_id === S.user.id && r.kind === kind));
+    else list.push({ message_id:mid, user_id:S.user.id, kind });
+    renderMsgs();
+    if (navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
+    const q = on ? sb.from("chat_reactions").delete().eq("message_id", mid).eq("user_id", S.user.id).eq("kind", kind)
+                 : sb.from("chat_reactions").insert({ message_id:mid, thread_id:C.open.id, user_id:S.user.id, kind });
+    const { error } = await q;
+    if (error && !(error.code === "23505")) {
+      if (on) (C.rx[mid] = C.rx[mid] || []).push({ message_id:mid, user_id:S.user.id, kind });
+      else C.rx[mid] = (C.rx[mid] || []).filter(r => !(r.user_id === S.user.id && r.kind === kind));
+      renderMsgs(); toast("Couldn't save that");
+    }
+  }
+  function onReaction(r, added) {
+    if (!r || !C.open || r.thread_id !== C.open.id || !r.message_id) return;
+    const list = C.rx[r.message_id] = (C.rx[r.message_id] || []).filter(x => !(x.user_id === r.user_id && x.kind === r.kind));
+    if (added) list.push(r);
+    renderMsgs();
+    if ($("seenSheet").classList.contains("on") && C.seenMsg && C.seenMsg.id === r.message_id) openSeen(C.seenMsg);
+  }
+  $("maRx").addEventListener("click", e => { const b = e.target.closest("[data-react]"); if (!b || !C.sel) return; const id = C.sel.id; closeAll(); toggleRx(id, b.dataset.react); });
+
   // read receipts: everyone in the chat can see who's opened it
   function seenOf(m) {
     const t = new Date(m.created_at), seen = [], notYet = [];
@@ -1738,7 +1784,9 @@
     const { seen, notYet } = seenOf(m);
     $("seenMeta").textContent = `${seen.length} of ${seen.length + notYet.length} have seen this`;
     const row = (x, done) => `<div class="pick${done ? "" : " notyet"}"><span class="av">${esc(initials(nameOf(x.user_id)))}</span>${esc(x.user_id === S.user.id ? "You" : nameOf(x.user_id))}${done ? `<span class="when">${whenOf(x.last_read_at)}</span>` : ""}</div>`;
-    $("seenList").innerHTML = (seen.length ? `<div class="seenhd">Seen</div>` + seen.map(x => row(x, true)).join("") : "")
+    const rl = C.rx[m.id] || [];
+    const rxBlock = rl.length ? `<div class="seenhd">Reactions</div>` + rl.map(r => `<div class="pick"><span class="av">${esc(initials(nameOf(r.user_id)))}</span>${esc(r.user_id === S.user.id ? "You" : nameOf(r.user_id))}<span class="when" style="font-size:18px">${RX[r.kind]}</span></div>`).join("") : "";
+    $("seenList").innerHTML = rxBlock + (seen.length ? `<div class="seenhd">Seen</div>` + seen.map(x => row(x, true)).join("") : "")
       + (notYet.length ? `<div class="seenhd">Not yet</div>` + notYet.map(x => row(x, false)).join("") : "");
     openOnly("seenSheet");
   }
@@ -1820,12 +1868,20 @@
   $("msgs").addEventListener("click", e => {
     const v = e.target.closest("[data-view]");
     if (v) { const d = document.createElement("div"); d.className = "viewer"; d.innerHTML = `<img src="${esc(v.dataset.view)}" alt=""><button type="button" aria-label="Close">×</button>`; d.addEventListener("click", () => d.remove()); document.body.appendChild(d); return; }
+    const pill = e.target.closest("[data-rxm]");
+    if (pill) { toggleRx(pill.dataset.rxm, pill.dataset.rxk); return; }
     const sn = e.target.closest("[data-seen]");
     if (sn) { const m = C.msgs.find(x => x.id === sn.dataset.seen); if (m) { C.seenMsg = m; openSeen(m); } return; }
     if (e.target.closest("a,video,button")) return;
     const row = e.target.closest("[data-mid]"); if (!row || !row.dataset.mid) return;
     const m = C.msgs.find(x => x.id === row.dataset.mid); if (!m) return;
+    if (!m.sender_id) { showActs(m); return; }
+    if (C.tapT && C.tapId === m.id) { clearTimeout(C.tapT); C.tapT = null; if (!hasRx(m.id, "heart")) toggleRx(m.id, "heart"); return; }
+    C.tapId = m.id; C.tapT = setTimeout(() => { C.tapT = null; showActs(m); }, 260);
+  });
+  function showActs(m) {
     C.sel = m;
+    $("maRx").querySelectorAll("[data-react]").forEach(b => b.setAttribute("aria-pressed", hasRx(m.id, b.dataset.react)));
     const mine = m.sender_id === S.user.id, grp = C.open.kind === "group";
     $("maSeen").hidden = !m.sender_id || (C.members || []).length < 2;
     $("maCopy").hidden = !m.body;
@@ -1833,7 +1889,7 @@
     $("maUnpin").hidden = !(S.admin && grp) || C.open.pinned_message_id !== m.id;
     $("maDel").hidden = !(mine || S.admin);
     openOnly("msgSheet");
-  });
+  }
   $("maCancel").addEventListener("click", closeAll);
   $("maCopy").addEventListener("click", () => { try { navigator.clipboard.writeText(C.sel.body || ""); toast("Copied"); } catch (e) {} closeAll(); });
   const setPin = async id => { const { error } = await sb.from("chat_threads").update({ pinned_message_id:id }).eq("id", C.open.id); closeAll(); if (error) { toast("Couldn't pin that"); return; } C.open.pinned_message_id = id; renderPin(); toast(id ? "Pinned" : "Unpinned"); };
