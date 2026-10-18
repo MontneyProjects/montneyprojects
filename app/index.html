@@ -438,6 +438,18 @@
   .fday { margin-top:18px; }
   .fday h3 { margin:0; font-size:13px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); display:flex; justify-content:space-between; }
   .fday h3 b { color:var(--gold); letter-spacing:0; font-size:15px; }
+  .rv { position:fixed; inset:0; z-index:75; background:#000; display:flex; flex-direction:column; }
+  .rv .rvh { display:flex; align-items:center; gap:10px; padding:calc(var(--top) + 8px) 12px 8px; color:#fff; }
+  .rv .rvh .tt { flex:1; min-width:0; } .rv .rvh b { display:block; font-size:16px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .rv .rvh small { display:block; font-size:12px; color:rgba(255,255,255,.65); font-weight:600; }
+  .rv .rvh button { width:40px; height:40px; border-radius:50%; border:0; background:rgba(255,255,255,.14); color:#fff; font-size:20px; flex:none; }
+  .rv .rvb { flex:1; overflow:hidden; position:relative; touch-action:none; display:grid; place-items:center; }
+  .rv .rvb img { max-width:100%; max-height:100%; transform-origin:0 0; will-change:transform; user-select:none; -webkit-user-drag:none; }
+  .rv .rvb iframe { width:100%; height:100%; border:0; background:#fff; }
+  .rv .rvf { display:flex; gap:10px; padding:10px 12px calc(env(safe-area-inset-bottom) + 12px); }
+  .rv .rvf a, .rv .rvf button { flex:1; height:46px; border-radius:23px; border:0; display:flex; align-items:center; justify-content:center; font:inherit; font-size:15px; font-weight:800; text-decoration:none; }
+  .rv .rvf .p { background:var(--gold); color:var(--bg); } .rv .rvf .g { background:rgba(255,255,255,.14); color:#fff; }
+  .rv .rvhint { position:absolute; bottom:10px; left:0; right:0; text-align:center; font-size:12px; color:rgba(255,255,255,.55); font-weight:600; pointer-events:none; }
+  .frow.tap { cursor:pointer; }
   .frow { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--line); }
   .frow img { width:48px; height:48px; border-radius:10px; object-fit:cover; background:var(--surf2); flex:none; cursor:zoom-in; }
   .frow .noimg { width:48px; height:48px; border-radius:10px; background:var(--surf2); flex:none; display:grid; place-items:center; color:var(--muted); }
@@ -1356,7 +1368,7 @@
   async function loadFuel(countOnly) {
     const since = new Date(); since.setDate(since.getDate() - (S.admin ? 31 : 14));
     const { data } = await sb.from("fuel_logs").select("*").gte("fill_date", iso(since)).order("fill_date", { ascending:false }).order("created_at", { ascending:false }).limit(300);
-    const rows = data || [];
+    const rows = F.rows = data || [];
     if (S.admin) {
       const wk = new Date(); wk.setDate(wk.getDate() - 6);
       const week = rows.filter(r => r.fill_date >= iso(wk)).reduce((a, r) => a + Number(r.total || 0), 0);
@@ -1372,12 +1384,76 @@
       list.forEach(r => byTruck[r.truck] = (byTruck[r.truck] || 0) + Number(r.total || 0));
       return `<div class="fday"><h3>${esc(new Date(k + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" }))}<b>${money(tot)}</b></h3>
         ${S.admin && Object.keys(byTruck).length > 1 ? `<div class="ftrucks">${Object.keys(byTruck).sort().map(t => `<span>${esc(t)} · ${money(byTruck[t])}</span>`).join("")}</div>` : ""}
-        ${list.map(r => `<div class="frow">${r.receipt_path && fuelUrls[r.receipt_path] ? `<img src="${esc(fuelUrls[r.receipt_path])}" alt="Receipt" data-big="${esc(fuelUrls[r.receipt_path])}">` : `<span class="noimg">${svg("fuel")}</span>`}
+        ${list.map(r => `<div class="frow${r.receipt_path ? " tap" : ""}" data-fid="${r.id}">${r.receipt_path && fuelUrls[r.receipt_path] ? `<img src="${esc(fuelUrls[r.receipt_path])}" alt="Receipt">` : `<span class="noimg">${svg("fuel")}</span>`}
           <span class="t"><b>Truck ${esc(r.truck)}${r.station ? " · " + esc(r.station) : ""}</b><small>${[r.litres ? Number(r.litres).toFixed(1) + " L" : "", r.price_per_l ? "$" + Number(r.price_per_l).toFixed(3) + "/L" : "", S.admin ? who(r.crew_name) : ""].filter(Boolean).join(" · ")}</small></span>
           <span class="amt">${money(r.total)}</span></div>`).join("")}</div>`;
     }).join("") : '<p class="empty">No fill-ups yet.</p>';
   }
-  $("fList").addEventListener("click", e => { const big = e.target.closest("[data-big]"); if (!big) return; const dv = document.createElement("div"); dv.className = "viewer"; dv.innerHTML = `<img src="${esc(big.dataset.big)}" alt=""><button type="button" aria-label="Close">×</button>`; dv.addEventListener("click", () => dv.remove()); document.body.appendChild(dv); });
+  $("fList").addEventListener("click", e => {
+    const row = e.target.closest("[data-fid]"); if (!row) return;
+    const r = (F.rows || []).find(x => x.id === row.dataset.fid); if (!r || !r.receipt_path) return;
+    openReceipt({ bucket:"fuel-receipts", path:r.receipt_path, url:fuelUrls[r.receipt_path], title:"Fuel · " + (r.truck ? "Truck " + r.truck : "Receipt"), sub:[new Date(r.fill_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric", year:"numeric" }), r.litres ? r.litres + " L" : "", r.total ? money(r.total) : ""].filter(Boolean).join(" · ") });
+  });
+
+  // ---------- receipt viewer: full screen, pinch/double-tap to zoom, open the original, save/share ----------
+  async function openReceipt({ bucket, path, url, title, sub }) {
+    if (!url) { const { data } = await sb.storage.from(bucket).createSignedUrl(path, 3600 * 6); url = data && data.signedUrl; }
+    if (!url) { toast("Couldn't open that receipt"); return; }
+    const isPdf = /\.pdf($|\?)/i.test(path);
+    const name = (title || "receipt").replace(/[^\w.-]+/g, "-").replace(/-+/g, "-") + (isPdf ? ".pdf" : "." + ((path.split(".").pop() || "jpg").toLowerCase()));
+    const v = document.createElement("div"); v.className = "rv"; v.setAttribute("role", "dialog"); v.setAttribute("aria-modal", "true");
+    v.innerHTML = `<div class="rvh"><div class="tt"><b>${esc(title || "Receipt")}</b>${sub ? `<small>${esc(sub)}</small>` : ""}</div><button type="button" data-x aria-label="Close">×</button></div>
+      <div class="rvb">${isPdf ? `<iframe src="${esc(url)}" title="Receipt"></iframe>` : `<img src="${esc(url)}" alt="Receipt"><div class="rvhint">Pinch or double-tap to zoom</div>`}</div>
+      <div class="rvf"><a class="g" href="${esc(url)}" target="_blank" rel="noopener">Open original</a><button class="p" type="button" data-share>${navigator.share ? "Save / Share" : "Download"}</button></div>`;
+    document.body.appendChild(v);
+    const close = () => { v.remove(); document.removeEventListener("keydown", esc_); };
+    const esc_ = e => { if (e.key === "Escape") close(); };
+    document.addEventListener("keydown", esc_);
+    v.querySelector("[data-x]").addEventListener("click", close);
+    v.querySelector("[data-share]").addEventListener("click", async () => {
+      try {
+        const blob = await (await fetch(url)).blob();
+        const file = new File([blob], name, { type:blob.type || (isPdf ? "application/pdf" : "image/jpeg") });
+        if (navigator.canShare && navigator.canShare({ files:[file] })) { await navigator.share({ files:[file], title:title || "Receipt" }); return; }
+        const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      } catch (e) { if (e && e.name === "AbortError") return; window.open(url, "_blank"); }
+    });
+    if (isPdf) return;
+    // pinch-zoom and pan
+    const box = v.querySelector(".rvb"), img = box.querySelector("img"), hint = box.querySelector(".rvhint");
+    let sc = 1, tx = 0, ty = 0, base = null, lastTap = 0;
+    const pts = new Map();
+    const clamp = () => {
+      const bw = box.clientWidth, bh = box.clientHeight, iw = img.offsetWidth * sc, ih = img.offsetHeight * sc;
+      const ox = img.offsetLeft, oy = img.offsetTop;
+      const minX = Math.min(0, bw - iw - ox) , maxX = Math.max(0, -ox), minY = Math.min(0, bh - ih - oy), maxY = Math.max(0, -oy);
+      if (sc <= 1) { sc = 1; tx = 0; ty = 0; } else { tx = Math.min(maxX, Math.max(minX, tx)); ty = Math.min(maxY, Math.max(minY, ty)); }
+    };
+    const apply = (anim) => { img.style.transition = anim ? "transform .2s" : "none"; img.style.transform = `translate(${tx}px,${ty}px) scale(${sc})`; };
+    const zoomAt = (ns, cx, cy) => { const r = img.getBoundingClientRect(), lx = (cx - r.left) / sc, ly = (cy - r.top) / sc; ns = Math.min(6, Math.max(1, ns)); tx += lx * sc - lx * ns; ty += ly * sc - ly * ns; sc = ns; };
+    box.addEventListener("pointerdown", e => {
+      box.setPointerCapture(e.pointerId); pts.set(e.pointerId, { x:e.clientX, y:e.clientY }); if (hint) hint.remove();
+      if (pts.size === 1) {
+        const now = Date.now();
+        if (now - lastTap < 280) { zoomAt(sc > 1 ? 1 : 2.5, e.clientX, e.clientY); clamp(); apply(true); lastTap = 0; return; }
+        lastTap = now;
+      }
+      base = null;
+    });
+    box.addEventListener("pointermove", e => {
+      if (!pts.has(e.pointerId)) return;
+      const prev = pts.get(e.pointerId); pts.set(e.pointerId, { x:e.clientX, y:e.clientY });
+      if (pts.size === 2) {
+        const [a, b] = [...pts.values()], d = Math.hypot(a.x - b.x, a.y - b.y), cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2;
+        if (!base) base = { d, sc, cx, cy };
+        zoomAt(base.sc * d / base.d, cx, cy); tx += cx - base.cx; ty += cy - base.cy; base.cx = cx; base.cy = cy;
+        apply(false);
+      } else if (pts.size === 1 && sc > 1) { tx += e.clientX - prev.x; ty += e.clientY - prev.y; apply(false); }
+    });
+    const up = e => { pts.delete(e.pointerId); base = null; if (!pts.size) { clamp(); apply(true); } };
+    box.addEventListener("pointerup", up); box.addEventListener("pointercancel", up);
+    box.addEventListener("wheel", e => { e.preventDefault(); zoomAt(sc * (e.deltaY < 0 ? 1.15 : 1 / 1.15), e.clientX, e.clientY); clamp(); apply(false); }, { passive:false });
+  }
 
 
   // ---------- company receipts -> QuickBooks (admin) ----------
@@ -1435,6 +1511,11 @@
     $("eShot").innerHTML = `${svg("camera")}Snap or upload a receipt<small>Photo or PDF</small>`;
     loadExp();
   });
+  $("eList").addEventListener("click", e => {
+    const row = e.target.closest("[data-eid]"); if (!row) return;
+    const r = (E.rows || []).find(x => x.id === row.dataset.eid); if (!r || !r.receipt_path) return;
+    openReceipt({ bucket:"expense-receipts", path:r.receipt_path, title:r.vendor || "Receipt", sub:[new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric", year:"numeric" }), r.category, r.total ? money(r.total) : ""].filter(Boolean).join(" · ") });
+  });
   async function loadExp(countOnly) {
     if (!S.admin) return;
     const { data } = await sb.from("expenses").select("*").order("created_at", { ascending:false }).limit(60);
@@ -1442,7 +1523,8 @@
     $("expCounts").innerHTML = waiting || bad ? `${waiting ? `<span style="color:var(--gold)">${waiting} going in within the hour</span>` : ""}${bad ? `<span style="color:var(--bad2)">${bad} need a look</span>` : ""}` : "Snap a company receipt";
     if (countOnly) return;
     const st = r => r.qbo_status === "posted" ? `<span class="tag ok">In QuickBooks</span>` : r.qbo_status === "error" ? `<span class="tag bad" title="${esc(r.qbo_error || "")}">Needs a look</span>` : `<span class="tag warn">Within the hour</span>`;
-    $("eList").innerHTML = rows.length ? rows.map(r => `<div class="frow"><span class="noimg">${svg(r.receipt_path ? "file" : "chev")}</span><span class="t"><b>${esc(r.vendor || "Receipt")}</b><small>${esc(new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric" }))} · ${esc(r.category)}${r.paid_personally ? " · paid personally" : ""}${r.qbo_status === "error" && r.qbo_error ? " · " + esc(r.qbo_error.slice(0, 80)) : ""}</small></span><span style="text-align:right"><span class="amt">${money(r.total)}</span><br>${st(r)}</span></div>`).join("") : '<p class="empty">No receipts yet. Start snapping.</p>';
+    E.rows = rows;
+    $("eList").innerHTML = rows.length ? rows.map(r => `<div class="frow${r.receipt_path ? " tap" : ""}" data-eid="${r.id}"><span class="noimg">${svg(r.receipt_path ? "file" : "chev")}</span><span class="t"><b>${esc(r.vendor || "Receipt")}</b><small>${esc(new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric" }))} · ${esc(r.category)}${r.paid_personally ? " · paid personally" : ""}${r.qbo_status === "error" && r.qbo_error ? " · " + esc(r.qbo_error.slice(0, 80)) : ""}</small></span><span style="text-align:right"><span class="amt">${money(r.total)}</span><br>${st(r)}</span></div>`).join("") : '<p class="empty">No receipts yet. Start snapping.</p>';
   }
 
   // ---------- hours ----------
@@ -1607,6 +1689,7 @@
       btn.disabled = false; btn.textContent = "Submit field ticket";
       if (j.error === "code") { store("mp_tk_code", ""); tkCode = ""; $("tkForm").hidden = true; $("tkGate").hidden = false; msg("tkGateMsg", "The crew code changed. Enter the new one.", "bad"); return; }
       if (!j.saved) { msg("tkMsg", "Not saved. Try again.", "bad"); return; }
+      if (S.user) sb.functions.invoke("activity", { body:{ mode:"ticket", t:{ date:d.date, truck:d.truck, client:d.client, job:d.job, hours:d.hours, shop:d.shop } } }).catch(() => {});
       $("tkDoneMsg").textContent = j.ok ? `Added to the ${j.tab || d.truck} tab. Your hours show on your calendar within the hour.` : "Saved, but it couldn't be put on your truck's tab. Tell the office so they can move it.";
       const crewTxt = [d.fitter, d.helper && d.helper !== "No helper" ? d.helper : ""].filter(Boolean).map(shortName).join(" + ");
       const hrsTxt = [Number(d.hours) > 0 ? d.hours + " billable" : "", Number(d.shop) > 0 ? d.shop + " shop" : ""].filter(Boolean).join(" · ");
