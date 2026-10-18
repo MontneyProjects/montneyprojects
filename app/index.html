@@ -1288,10 +1288,10 @@
   let tessLoading = null;
   const loadTess = () => tessLoading || (tessLoading = new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"; sc.onload = () => res(window.Tesseract); sc.onerror = rej; document.head.appendChild(sc); }));
   async function prepImage(file) {   // shrink + boost contrast so thermal receipts read better
-    const bmp = await createImageBitmap(file), max = 1800, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
+    const bmp = await createImageBitmap(file), max = 1400, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
     const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
     const x = c.getContext("2d"); x.drawImage(bmp, 0, 0, c.width, c.height);
-    const upload = await new Promise(r => c.toBlob(r, "image/jpeg", .85));
+    const upload = await new Promise(r => c.toBlob(r, "image/jpeg", .75));
     const img = x.getImageData(0, 0, c.width, c.height), d = img.data;
     for (let i = 0; i < d.length; i += 4) { const g = .299 * d[i] + .587 * d[i + 1] + .114 * d[i + 2], v = g > 150 ? 255 : g < 90 ? 0 : (g - 90) * 4.25; d[i] = d[i + 1] = d[i + 2] = v; }
     x.putImageData(img, 0, 0);
@@ -1304,9 +1304,9 @@
   async function aiRead(blob, kind) {
     try {
       const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
-      // give up after 35s and fall back to on-phone OCR instead of spinning forever
+      // give up after 60s and fall back to on-phone OCR instead of spinning forever
       const call = sb.functions.invoke("read-receipt", { body:{ image_b64:b64, media_type:"image/jpeg", kind } });
-      const { data, error } = await Promise.race([call, new Promise(r => setTimeout(() => r({ error:"timeout" }), 35000))]);
+      const { data, error } = await Promise.race([call, new Promise(r => setTimeout(() => r({ error:"timeout" }), 60000))]);
       if (error || !data || !data.receipt) return null;
       const r = data.receipt, n = v => (typeof v === "number" && isFinite(v) ? v : num(v));
       return { station:r.vendor || null, date:/^\d{4}-\d{2}-\d{2}$/.test(r.date || "") ? r.date : null, total:n(r.total), gst:n(r.gst), litres:n(r.litres), ppl:n(r.price_per_litre), category:r.category || null, items:r.items || null };
@@ -1998,7 +1998,7 @@
       const bmp = await createImageBitmap(f), max = 1800, sc = Math.min(1, max / Math.max(bmp.width, bmp.height));
       const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
       c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
-      const blob = await new Promise(r => c.toBlob(r, "image/jpeg", .85));
+      const blob = await new Promise(r => c.toBlob(r, "image/jpeg", .75));
       return { blob, type:"image/jpeg", ext:"jpg", w:c.width, h:c.height };
     } catch (e) { return { blob:f, type:f.type, ext:(f.name.split(".").pop() || "bin").toLowerCase() }; }
   }
