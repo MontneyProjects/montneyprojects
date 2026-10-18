@@ -1297,12 +1297,16 @@
     x.putImageData(img, 0, 0);
     return { upload, ocr:c };
   }
+  // on-phone OCR fallback, capped at 40s so the "Reading" spinner always ends
+  const ocrRead = async img => { const T = await loadTess(); const r = await Promise.race([T.recognize(img, "eng"), new Promise((_, rej) => setTimeout(() => rej(new Error("ocr timeout")), 40000))]); return r.data.text || ""; };
   const num = s => { const n = parseFloat(String(s).replace(/[,\s]/g, "").replace(/[^\d.]/g, "")); return isNaN(n) ? null : n; };
   // Claude vision reads the receipt; returns null if it's unavailable so the caller can fall back to on-phone OCR.
   async function aiRead(blob, kind) {
     try {
       const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
-      const { data, error } = await sb.functions.invoke("read-receipt", { body:{ image_b64:b64, media_type:"image/jpeg", kind } });
+      // give up after 35s and fall back to on-phone OCR instead of spinning forever
+      const call = sb.functions.invoke("read-receipt", { body:{ image_b64:b64, media_type:"image/jpeg", kind } });
+      const { data, error } = await Promise.race([call, new Promise(r => setTimeout(() => r({ error:"timeout" }), 35000))]);
       if (error || !data || !data.receipt) return null;
       const r = data.receipt, n = v => (typeof v === "number" && isFinite(v) ? v : num(v));
       return { station:r.vendor || null, date:/^\d{4}-\d{2}-\d{2}$/.test(r.date || "") ? r.date : null, total:n(r.total), gst:n(r.gst), litres:n(r.litres), ppl:n(r.price_per_litre), category:r.category || null, items:r.items || null };
@@ -1344,7 +1348,7 @@
     $("fReading").hidden = false; msg("fMsg", "");
     try {
       let p = await aiRead(prep.upload, "fuel");
-      if (!p) { const T = await loadTess(); const r = await T.recognize(prep.ocr || prep.upload, "eng"); p = parseReceipt(r.data.text || ""); }
+      if (!p) p = parseReceipt(await ocrRead(prep.ocr || prep.upload));
       if (p.date) $("fDate").value = p.date;
       if (p.station && !$("fStation").value) $("fStation").value = p.station;
       if (p.litres) $("fLitres").value = p.litres;
@@ -1495,7 +1499,7 @@
     $("eReading").hidden = false;
     try {
       let p = await aiRead(prep.upload, "expense"), raw = "";
-      if (!p) { const T = await loadTess(); const r = await T.recognize(prep.ocr || prep.upload, "eng"); raw = r.data.text || ""; p = parseReceipt(raw); }
+      if (!p) { raw = await ocrRead(prep.ocr || prep.upload); p = parseReceipt(raw); }
       if (p.date) $("eDate").value = p.date;
       if (p.station) $("eVendor").value = p.station;
       if (p.total) $("eTotal").value = p.total.toFixed(2);
