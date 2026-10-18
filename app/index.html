@@ -868,6 +868,7 @@
   const hideSplash = () => setTimeout(() => $("splash").classList.add("gone"), Math.max(0, 900 - (Date.now() - started)));
 
   if (!window.supabase) { hideSplash(); $("login").hidden = false; msg("liMsg", "No connection. Check your signal and reopen MontneyPro.", "bad"); return; }
+  const AUTO_READ = false;   // receipt auto-read off (no AI key). Set true once an Anthropic key is saved.
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
   const S = { user:null, profile:null, admin:false, crew:null, roster:[], view:"home", calMonth:null };
   const crewNameOf = p => p ? ((p.ticket_name || "").trim() || (p.full_name || "").trim().split(/\s+/)[0] || "").toLowerCase() : "";
@@ -1345,6 +1346,7 @@
     let prep; try { prep = await prepImage(file); } catch (e) { prep = { upload:file, ocr:null }; }
     F.file = prep.upload;
     $("fShot").innerHTML = `<img src="${URL.createObjectURL(prep.upload)}" alt="Receipt">`;
+    if (!AUTO_READ) { msg("fMsg", "Receipt attached. Type in the litres and total."); return; }
     $("fReading").hidden = false; msg("fMsg", "");
     try {
       let p = await aiRead(prep.upload, "fuel");
@@ -1496,6 +1498,7 @@
     let prep; try { prep = await prepImage(file); } catch (e) { prep = { upload:file, ocr:null }; }
     E.file = prep.upload; E.type = "image/jpeg";
     $("eShot").innerHTML = `<img src="${URL.createObjectURL(prep.upload)}" alt="Receipt">`;
+    if (!AUTO_READ) { msg("eMsg", "Receipt attached. Type in the numbers below."); return; }
     $("eReading").hidden = false;
     try {
       let p = await aiRead(prep.upload, "expense"), raw = "";
