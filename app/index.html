@@ -362,7 +362,9 @@
   .pick input { margin-left:auto; width:22px; height:22px; accent-color:var(--gold); }
   .segtabs { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border-radius:14px; background:var(--surf); margin-bottom:14px; }
   .segtabs button { height:38px; border-radius:10px; border:0; background:none; color:var(--muted); font-weight:800; font-size:14px; }
-  #fPaid button { height:50px; font-size:15px; }
+  .paypick { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:8px 0 14px; }
+  .paypick button { height:56px; border-radius:14px; border:2px solid var(--line2); background:var(--surf); color:var(--text, #f3ead8); font-weight:800; font-size:16px; }
+  .paypick button[aria-pressed="true"] { border-color:var(--gold); background:var(--gold); color:var(--bg); }
   .segtabs button[aria-pressed="true"] { background:var(--gold); color:var(--bg); }
   .sheet .field { margin-bottom:12px; }
   .acts-list .btn { justify-content:flex-start; }
@@ -694,8 +696,8 @@
     <input type="file" id="fFile" accept="image/*" capture="environment" hidden>
     <div class="reading" id="fReading" hidden><i></i><span>Reading the receipt...</span></div>
     <form id="fuelForm" autocomplete="off">
-      <div class="label" style="margin-top:18px">How was it paid?</div>
-      <div class="segtabs" id="fPaid" style="margin-top:8px"><button type="button" data-pay="fuel_card" aria-pressed="false">Fuel card</button><button type="button" data-pay="employee" aria-pressed="false">I paid · pay back</button></div>
+      <div class="label" style="margin-top:18px">Paid with</div>
+      <div class="paypick" id="fPaid"><button type="button" data-pay="fuel_card" aria-pressed="false">Fuel card</button><button type="button" data-pay="employee" aria-pressed="false">My own money</button></div>
       <div class="group" style="margin-top:4px">
         <label><span>Date</span><input type="date" id="fDate" required></label>
         <label><span>Station</span><input id="fStation" placeholder="Cardlock / station"></label>
@@ -1374,7 +1376,7 @@
   $("fuelForm").addEventListener("submit", async e => {
     e.preventDefault();
     if (!F.truck) { msg("fMsg", "Tap the truck at the top.", "bad"); return; }
-    if (!F.paid) { msg("fMsg", "Tap how it was paid: Fuel card or I paid.", "bad"); $("fPaid").scrollIntoView({ block:"center", behavior:"smooth" }); return; }
+    if (!F.paid) { msg("fMsg", "Tap Fuel card or My own money.", "bad"); $("fPaid").scrollIntoView({ block:"center", behavior:"smooth" }); return; }
     if (F.paid === "employee" && !F.file && !confirm("No receipt photo. You may not get paid back without one. Save anyway?")) return;
     const total = num($("fTotal").value); if (!(total > 0)) { msg("fMsg", "Enter the total from the receipt.", "bad"); return; }
     $("fSave").disabled = true; msg("fMsg", "Saving...");
