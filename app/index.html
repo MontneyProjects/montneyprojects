@@ -180,6 +180,7 @@
   .line .end { font-size:14px; font-weight:700; color:var(--gold); }
   .line .chev { width:16px; height:16px; color:var(--dim); }
   .line .tag { font-size:11px; font-weight:800; padding:4px 9px; border-radius:10px; }
+  .frow .tag { display:inline-block; margin-top:4px; font-size:11px; font-weight:800; padding:3px 8px; border-radius:9px; white-space:nowrap; }
   .tag.ok { background:rgba(111,191,138,.16); color:var(--ok2); } .tag.warn { background:rgba(227,184,115,.16); color:var(--gold2); } .tag.bad { background:rgba(224,122,95,.16); color:var(--bad2); } .tag.none { background:var(--surf2); color:var(--muted); }
   .docic { width:40px; height:40px; border-radius:12px; background:var(--surf2); display:grid; place-items:center; flex:none; color:var(--gold); }
   .docic svg { width:18px; height:18px; }
@@ -361,6 +362,7 @@
   .pick input { margin-left:auto; width:22px; height:22px; accent-color:var(--gold); }
   .segtabs { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border-radius:14px; background:var(--surf); margin-bottom:14px; }
   .segtabs button { height:38px; border-radius:10px; border:0; background:none; color:var(--muted); font-weight:800; font-size:14px; }
+  #fPaid button { height:50px; font-size:15px; }
   .segtabs button[aria-pressed="true"] { background:var(--gold); color:var(--bg); }
   .sheet .field { margin-bottom:12px; }
   .acts-list .btn { justify-content:flex-start; }
@@ -692,7 +694,9 @@
     <input type="file" id="fFile" accept="image/*" capture="environment" hidden>
     <div class="reading" id="fReading" hidden><i></i><span>Reading the receipt...</span></div>
     <form id="fuelForm" autocomplete="off">
-      <div class="group" style="margin-top:16px">
+      <div class="label" style="margin-top:18px">How was it paid?</div>
+      <div class="segtabs" id="fPaid" style="margin-top:8px"><button type="button" data-pay="fuel_card" aria-pressed="false">Fuel card</button><button type="button" data-pay="employee" aria-pressed="false">I paid · pay back</button></div>
+      <div class="group" style="margin-top:4px">
         <label><span>Date</span><input type="date" id="fDate" required></label>
         <label><span>Station</span><input id="fStation" placeholder="Cardlock / station"></label>
         <label><span>Litres</span><input id="fLitres" inputmode="decimal" placeholder="0.0"></label>
@@ -1365,9 +1369,13 @@
     } catch (e) { msg("fMsg", "Couldn't read the receipt. Type the numbers in.", "bad"); }
     $("fReading").hidden = true;
   });
+  const setPaid = v => { F.paid = v; $("fPaid").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.pay === v))); };
+  $("fPaid").addEventListener("click", e => { const b = e.target.closest("[data-pay]"); if (b) { setPaid(b.dataset.pay); if (b.dataset.pay === "employee") msg("fMsg", "Snap the receipt so you get paid back.", "ok"); else msg("fMsg", ""); } });
   $("fuelForm").addEventListener("submit", async e => {
     e.preventDefault();
     if (!F.truck) { msg("fMsg", "Tap the truck at the top.", "bad"); return; }
+    if (!F.paid) { msg("fMsg", "Tap how it was paid: Fuel card or I paid.", "bad"); $("fPaid").scrollIntoView({ block:"center", behavior:"smooth" }); return; }
+    if (F.paid === "employee" && !F.file && !confirm("No receipt photo. You may not get paid back without one. Save anyway?")) return;
     const total = num($("fTotal").value); if (!(total > 0)) { msg("fMsg", "Enter the total from the receipt.", "bad"); return; }
     $("fSave").disabled = true; msg("fMsg", "Saving...");
     let path = null;
@@ -1377,11 +1385,11 @@
       if (up.error) path = null;
     }
     const row = { truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim() || null,
-      litres:num($("fLitres").value), price_per_l:num($("fPpl").value), gst:num($("fGst").value), total, odometer:$("fOdo").value.trim() || null, receipt_path:path };
+      litres:num($("fLitres").value), price_per_l:num($("fPpl").value), gst:num($("fGst").value), total, odometer:$("fOdo").value.trim() || null, receipt_path:path, paid_by:F.paid };
     const { error } = await sb.from("fuel_logs").insert(row);
     $("fSave").disabled = false;
     if (error) { msg("fMsg", "Didn't save. Check your signal and try again.", "bad"); return; }
-    toast("Fuel saved ⛽"); msg("fMsg", "");
+    toast(F.paid === "employee" ? "Saved. Flagged for pay-back ⛽" : "Fuel saved ⛽"); msg("fMsg", ""); setPaid(null);
     F.file = null; ["fStation", "fLitres", "fPpl", "fGst", "fTotal", "fOdo"].forEach(id => $(id).value = "");
     $("fShot").innerHTML = `${svg("camera")}Snap the receipt<small>The app reads the litres and cost for you</small>`;
     loadFuel();
@@ -1408,7 +1416,7 @@
         ${S.admin && Object.keys(byTruck).length > 1 ? `<div class="ftrucks">${Object.keys(byTruck).sort().map(t => `<span>${esc(t)} · ${money(byTruck[t])}</span>`).join("")}</div>` : ""}
         ${list.map(r => `<div class="frow${r.receipt_path ? " tap" : ""}" data-fid="${r.id}">${r.receipt_path && fuelUrls[r.receipt_path] ? `<img src="${esc(fuelUrls[r.receipt_path])}" alt="Receipt">` : `<span class="noimg">${svg("fuel")}</span>`}
           <span class="t"><b>Truck ${esc(r.truck)}${r.station ? " · " + esc(r.station) : ""}</b><small>${[r.litres ? Number(r.litres).toFixed(1) + " L" : "", r.price_per_l ? "$" + Number(r.price_per_l).toFixed(3) + "/L" : "", S.admin ? who(r.crew_name) : ""].filter(Boolean).join(" · ")}</small></span>
-          <span class="amt">${money(r.total)}</span></div>`).join("")}</div>`;
+          <span style="text-align:right"><span class="amt">${money(r.total)}</span>${r.paid_by === "employee" ? `<br><span class="tag warn">Pay back${S.admin ? " " + esc(String(who(r.crew_name)).split(/\s+/)[0]) : ""}</span>` : r.paid_by === "fuel_card" ? `<br><span class="tag ok">Fuel card</span>` : ""}</span></div>`).join("")}</div>`;
     }).join("") : '<p class="empty">No fill-ups yet.</p>';
   }
   $("fList").addEventListener("click", e => {
