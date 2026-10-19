@@ -362,6 +362,7 @@
   .pick input { margin-left:auto; width:22px; height:22px; accent-color:var(--gold); }
   .segtabs { display:grid; grid-template-columns:1fr 1fr; gap:4px; padding:4px; border-radius:14px; background:var(--surf); margin-bottom:14px; }
   .segtabs button { height:38px; border-radius:10px; border:0; background:none; color:var(--muted); font-weight:800; font-size:14px; }
+  .fsum { display:flex; flex-wrap:wrap; gap:4px 14px; align-items:baseline; margin:12px 2px 4px; font-size:13px; color:var(--muted); font-weight:700; } .fsum b { font-size:22px; color:var(--text); font-weight:800; }
   .paypick { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:8px 0 14px; }
   .paypick button { height:56px; border-radius:14px; border:2px solid var(--line2); background:var(--surf); color:var(--text, #f3ead8); font-weight:800; font-size:16px; }
   .paypick button[aria-pressed="true"] { border-color:var(--gold); background:var(--gold); color:var(--bg); }
@@ -712,6 +713,14 @@
       <p class="msg" id="fMsg" aria-live="polite"></p>
     </form>
     <h2 class="section" id="fHistHead">Recent fill-ups</h2>
+    <div id="fFilters" hidden>
+      <div class="group" style="margin-top:10px">
+        <label><span>Show</span><select id="fRange"><option value="30">Last 30 days</option><option value="tm">This month</option><option value="lm">Last month</option><option value="ty">This year</option><option value="all" selected>All time</option></select></label>
+        <label><span>Truck</span><select id="fTruckF"><option value="">All trucks</option></select></label>
+        <label><span>Paid with</span><select id="fPaidF"><option value="">All</option><option value="fuel_card">Fuel card</option><option value="employee">Own money (pay back)</option><option value="none">Not set</option></select></label>
+      </div>
+      <div class="fsum" id="fSum"></div>
+    </div>
     <div id="fList"><p class="empty">Loading...</p></div>
   </section>
 
@@ -1290,7 +1299,9 @@
     if (!F.truck) { const last = (store("mp_tk_last") || {}).truck; if (last) F.truck = last; }
     $("fTruck").innerHTML = TRUCKS.map(t => `<button type="button" class="chipbtn" data-ftruck="${esc(t)}" aria-pressed="${F.truck === t}">${t === "Skid steer" ? "Skid" : esc(t)}</button>`).join("");
     if (!$("fDate").value) $("fDate").value = iso(new Date());
-    $("fHistHead").textContent = S.admin ? "Fuel by day" : "Your recent fill-ups";
+    $("fHistHead").textContent = S.admin ? "All fuel" : "Your recent fill-ups";
+    $("fFilters").hidden = !S.admin;
+    if (S.admin && $("fTruckF").options.length < 2) $("fTruckF").innerHTML = `<option value="">All trucks</option>` + TRUCKS.map(t => `<option>${esc(t)}</option>`).join("");
     loadFuel();
   }
   $("fTruck").addEventListener("click", e => { const b = e.target.closest("[data-ftruck]"); if (!b) return; F.truck = b.dataset.ftruck; $("fTruck").querySelectorAll("[data-ftruck]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ftruck === F.truck)); });
@@ -1397,11 +1408,32 @@
     loadFuel();
   });
   const fuelUrls = {};
+  function fuelRange() {
+    const now = new Date(), y = now.getFullYear(), m = now.getMonth(), r = S.admin ? ($("fRange").value || "30") : "14";
+    if (r === "tm") return [iso(new Date(y, m, 1)), null];
+    if (r === "lm") return [iso(new Date(y, m - 1, 1)), iso(new Date(y, m, 0))];
+    if (r === "ty") return [iso(new Date(y, 0, 1)), null];
+    if (r === "all") return [null, null];
+    const d = new Date(); d.setDate(d.getDate() - (r === "14" ? 14 : 30)); return [iso(d), null];
+  }
+  ["fRange", "fTruckF", "fPaidF"].forEach(id => $(id).addEventListener("change", () => loadFuel()));
   async function loadFuel(countOnly) {
-    const since = new Date(); since.setDate(since.getDate() - (S.admin ? 31 : 14));
-    const { data } = await sb.from("fuel_logs").select("*").gte("fill_date", iso(since)).order("fill_date", { ascending:false }).order("created_at", { ascending:false }).limit(300);
-    const rows = F.rows = data || [];
-    if (S.admin) {
+    let [from, to] = countOnly ? [iso(new Date(Date.now() - 31 * 864e5)), null] : fuelRange();
+    let all = [];
+    for (let off = 0; off < 20000; off += 1000) {
+      let q = sb.from("fuel_logs").select("*");
+      if (from) q = q.gte("fill_date", from); if (to) q = q.lte("fill_date", to);
+      if (!countOnly && S.admin && $("fTruckF").value) q = q.eq("truck", $("fTruckF").value);
+      if (!countOnly && S.admin && $("fPaidF").value) q = $("fPaidF").value === "none" ? q.is("paid_by", null) : q.eq("paid_by", $("fPaidF").value);
+      const { data, error } = await q.order("fill_date", { ascending:false }).order("created_at", { ascending:false }).range(off, off + 999);
+      if (error || !data) break; all = all.concat(data); if (data.length < 1000 || countOnly || !S.admin) break;
+    }
+    const rows = F.rows = all;
+    if (S.admin && !countOnly) {
+      const sum = (l, k) => l.reduce((a, r) => a + Number(r[k] || 0), 0), owed = rows.filter(r => r.paid_by === "employee");
+      $("fSum").innerHTML = rows.length ? `<b>${money(sum(rows, "total"))}</b><span>${rows.length} fill-up${rows.length === 1 ? "" : "s"} · ${sum(rows, "litres").toLocaleString("en-CA", { maximumFractionDigits:0 })} L · GST ${money(sum(rows, "gst"))}</span>${owed.length ? `<span style="color:var(--gold2)">Pay back: ${money(sum(owed, "total"))} (${owed.length})</span>` : ""}` : "";
+    }
+    if (S.admin && countOnly) {
       const wk = new Date(); wk.setDate(wk.getDate() - 6);
       const week = rows.filter(r => r.fill_date >= iso(wk)).reduce((a, r) => a + Number(r.total || 0), 0);
       $("fuelCounts").innerHTML = rows.length ? `<span style="color:var(--gold)">${money(week)} last 7 days</span>` : "No fill-ups logged yet";
