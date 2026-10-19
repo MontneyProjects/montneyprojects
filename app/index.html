@@ -722,6 +722,7 @@
         <label><span>Total $</span><input id="eTotal" inputmode="decimal" placeholder="0.00" required></label>
         <label><span>GST</span><input id="eGst" inputmode="decimal" placeholder="0.00"></label>
         <label><span>Category</span><select id="eCat"></select></label>
+        <label><span>Paid with</span><select id="ePaid"></select></label>
         <label><span>Paid personally</span><span class="switch"><input type="checkbox" id="ePersonal" aria-label="Paid personally"><i></i></span></label>
         <label><span>Note</span><input id="eNote" placeholder="Optional, e.g. truck 005 tires"></label>
       </div>
@@ -729,6 +730,8 @@
       <p class="msg" id="eMsg" aria-live="polite"></p>
     </form>
     <h2 class="section">Recent</h2>
+    <div class="group" style="margin-top:10px"><label><span>Show</span><select id="eFilter"><option value="">All cards</option></select></label></div>
+    <p class="msg" id="eFilterSum" style="margin-top:8px" hidden></p>
     <div id="eList"><p class="empty">Loading...</p></div>
   </section>
 
@@ -1488,6 +1491,33 @@
     if (/staples|office/.test(x)) return "Office expenses";
     return ""; };
   const E = { file:null, type:"" };
+  // ---- "Paid with": which card or account paid, so the right statement is easy to match ----
+  const PAY_CARDS = ["Montney Amex Platinum", "Leland Amex Gold", "Leland Canadian Tire Silver", "Leland Canadian Tire Black", "Leland Capital One Blue", "Leland Capital One Gold", "Leland MBNA"];
+  const PAY_BASE = ["Cash", "Debit"], PAY_ADD = "__add__";
+  const lsGet = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } };
+  const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  function payOptions() {
+    const seen = new Set(), out = [];
+    [...PAY_CARDS, ...lsGet("mp_cards", []), ...(E.rows || []).map(r => r.paid_with)].forEach(c => { c = (c || "").trim(); if (c && !PAY_BASE.includes(c) && !seen.has(c.toLowerCase())) { seen.add(c.toLowerCase()); out.push(c); } });
+    return [...out.filter(c => PAY_CARDS.includes(c)), ...out.filter(c => !PAY_CARDS.includes(c)).sort((a, b) => a.localeCompare(b))];
+  }
+  function fillPaid(keep) {
+    const cards = payOptions(), cur = keep != null ? keep : ($("ePaid").value || lsGet("mp_last_card", ""));
+    $("ePaid").innerHTML = `<option value="">Pick one</option>${cards.map(c => `<option>${esc(c)}</option>`).join("")}${PAY_BASE.map(c => `<option>${esc(c)}</option>`).join("")}<option value="${PAY_ADD}">+ Add a card...</option>`;
+    $("ePaid").value = [...cards, ...PAY_BASE].includes(cur) ? cur : "";
+    const f = $("eFilter").value, used = [...new Set((E.rows || []).map(r => r.paid_with).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    $("eFilter").innerHTML = `<option value="">All cards</option>${used.map(c => `<option>${esc(c)}</option>`).join("")}<option value="__none__">Not set</option>`;
+    $("eFilter").value = (f === "__none__" || used.includes(f)) ? f : "";
+  }
+  $("ePaid").addEventListener("change", () => {
+    if ($("ePaid").value !== PAY_ADD) return;
+    const name = (prompt("Name the card so you'll recognise the statement, e.g. Montney Visa") || "").trim().slice(0, 60);
+    if (!name) { fillPaid(lsGet("mp_last_card", "")); return; }
+    const list = lsGet("mp_cards", []); if (!list.some(c => c.toLowerCase() === name.toLowerCase())) { list.push(name); lsSet("mp_cards", list); }
+    fillPaid(payOptions().find(c => c.toLowerCase() === name.toLowerCase()) || name);
+  });
+  $("eFilter").addEventListener("change", () => renderExp());
+  fillPaid();
   function openExp() { if (!$("eDate").value) $("eDate").value = iso(new Date()); loadExp(); }
   $("eShot").addEventListener("click", () => $("eFile").click());
   $("eVendor").addEventListener("change", () => { const g = guessCat($("eVendor").value); if (g) $("eCat").value = g; });
@@ -1515,6 +1545,7 @@
   $("expForm").addEventListener("submit", async e => {
     e.preventDefault();
     const total = num($("eTotal").value); if (!(total > 0)) { msg("eMsg", "Enter the total.", "bad"); return; }
+    const paidWith = $("ePaid").value; if (!paidWith || paidWith === PAY_ADD) { msg("eMsg", "Pick what it was paid with.", "bad"); $("ePaid").focus(); return; }
     if (!E.file && !confirm("Save without a receipt photo?")) return;
     $("eSave").disabled = true; msg("eMsg", "Saving...");
     let path = null;
@@ -1523,10 +1554,11 @@
       const up = await sb.storage.from("expense-receipts").upload(path, E.file, { contentType:E.type });
       if (up.error) { $("eSave").disabled = false; msg("eMsg", "The photo didn't upload. Check your signal and try again.", "bad"); return; }
     }
-    const row = { exp_date:$("eDate").value, vendor:$("eVendor").value.trim() || null, total, gst:num($("eGst").value), category:$("eCat").value, paid_personally:$("ePersonal").checked, notes:$("eNote").value.trim() || null, receipt_path:path };
+    const row = { exp_date:$("eDate").value, vendor:$("eVendor").value.trim() || null, total, gst:num($("eGst").value), category:$("eCat").value, paid_personally:$("ePersonal").checked, paid_with:paidWith, notes:$("eNote").value.trim() || null, receipt_path:path };
     const { error } = await sb.from("expenses").insert(row);
     $("eSave").disabled = false;
     if (error) { msg("eMsg", "Didn't save. Try again.", "bad"); return; }
+    lsSet("mp_last_card", paidWith);
     toast("Receipt saved 🧾"); msg("eMsg", "Saved. It goes into QuickBooks within the hour.", "ok");
     E.file = null; ["eVendor", "eTotal", "eGst", "eNote"].forEach(id => $(id).value = ""); $("ePersonal").checked = false;
     $("eShot").innerHTML = `${svg("camera")}Snap or upload a receipt<small>Photo or PDF</small>`;
@@ -1535,7 +1567,7 @@
   $("eList").addEventListener("click", e => {
     const row = e.target.closest("[data-eid]"); if (!row) return;
     const r = (E.rows || []).find(x => x.id === row.dataset.eid); if (!r || !r.receipt_path) return;
-    openReceipt({ bucket:"expense-receipts", path:r.receipt_path, title:r.vendor || "Receipt", sub:[new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric", year:"numeric" }), r.category, r.total ? money(r.total) : ""].filter(Boolean).join(" · ") });
+    openReceipt({ bucket:"expense-receipts", path:r.receipt_path, title:r.vendor || "Receipt", sub:[new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric", year:"numeric" }), r.category, r.paid_with, r.total ? money(r.total) : ""].filter(Boolean).join(" · ") });
   });
   async function loadExp(countOnly) {
     if (!S.admin) return;
@@ -1543,9 +1575,15 @@
     const rows = data || [], waiting = rows.filter(r => r.qbo_status === "pending").length, bad = rows.filter(r => r.qbo_status === "error").length;
     $("expCounts").innerHTML = waiting || bad ? `${waiting ? `<span style="color:var(--gold)">${waiting} going in within the hour</span>` : ""}${bad ? `<span style="color:var(--bad2)">${bad} need a look</span>` : ""}` : "Snap a company receipt";
     if (countOnly) return;
+    E.rows = rows; fillPaid(); renderExp();
+  }
+  function renderExp() {
+    const all = E.rows || [], f = $("eFilter").value;
+    const rows = !f ? all : all.filter(r => f === "__none__" ? !r.paid_with : r.paid_with === f);
+    $("eFilterSum").hidden = !f;
+    if (f) $("eFilterSum").textContent = `${rows.length} receipt${rows.length === 1 ? "" : "s"} · ${money(rows.reduce((a, r) => a + (Number(r.total) || 0), 0))} on ${f === "__none__" ? "no card set" : f}`;
     const st = r => r.qbo_status === "posted" ? `<span class="tag ok">In QuickBooks</span>` : r.qbo_status === "error" ? `<span class="tag bad" title="${esc(r.qbo_error || "")}">Needs a look</span>` : `<span class="tag warn">Within the hour</span>`;
-    E.rows = rows;
-    $("eList").innerHTML = rows.length ? rows.map(r => `<div class="frow${r.receipt_path ? " tap" : ""}" data-eid="${r.id}"><span class="noimg">${svg(r.receipt_path ? "file" : "chev")}</span><span class="t"><b>${esc(r.vendor || "Receipt")}</b><small>${esc(new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric" }))} · ${esc(r.category)}${r.paid_personally ? " · paid personally" : ""}${r.qbo_status === "error" && r.qbo_error ? " · " + esc(r.qbo_error.slice(0, 80)) : ""}</small></span><span style="text-align:right"><span class="amt">${money(r.total)}</span><br>${st(r)}</span></div>`).join("") : '<p class="empty">No receipts yet. Start snapping.</p>';
+    $("eList").innerHTML = rows.length ? rows.map(r => `<div class="frow${r.receipt_path ? " tap" : ""}" data-eid="${r.id}"><span class="noimg">${svg(r.receipt_path ? "file" : "chev")}</span><span class="t"><b>${esc(r.vendor || "Receipt")}</b><small>${esc(new Date(r.exp_date + "T00:00:00").toLocaleDateString("en-CA", { month:"short", day:"numeric" }))} · ${esc(r.category)}${r.paid_with ? " · " + esc(r.paid_with) : ""}${r.paid_personally ? " · paid personally" : ""}${r.qbo_status === "error" && r.qbo_error ? " · " + esc(r.qbo_error.slice(0, 80)) : ""}</small></span><span style="text-align:right"><span class="amt">${money(r.total)}</span><br>${st(r)}</span></div>`).join("") : `<p class="empty">${f ? "None on this card in the last 60 receipts." : "No receipts yet. Start snapping."}</p>`;
   }
 
   // ---------- hours ----------
