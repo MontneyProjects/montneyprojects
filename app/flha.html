@@ -742,7 +742,7 @@
 
 <script>
   // Set today's date by default
-  const today = new Date().toISOString().split('T')[0];
+  const today = (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(); // local date, not UTC (evening forms were getting tomorrow's date)
   document.getElementById('date').value = today;
   document.getElementById('confirmDate').value = today;
 
@@ -827,10 +827,14 @@
   let drawing = false;
   let lastX = 0, lastY = 0;
 
+  let lastSigW = 0;
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
+    // Only redraw when the width really changes. Setting canvas.width erases it, and iPhone/Android fire
+    // resize when the toolbar or keyboard shows, which was wiping a finished signature.
+    if (Math.round(rect.width) === lastSigW) return;
+    lastSigW = Math.round(rect.width);
     const dpr = window.devicePixelRatio || 1;
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);

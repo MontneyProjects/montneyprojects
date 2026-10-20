@@ -1395,7 +1395,7 @@
     if (F.file) {
       path = `${S.user.id}/${$("fDate").value}-${crypto.randomUUID().slice(0, 8)}.jpg`;
       const up = await sb.storage.from("fuel-receipts").upload(path, F.file, { contentType:"image/jpeg" });
-      if (up.error) path = null;
+      if (up.error) { $("fSave").disabled = false; msg("fMsg", "The receipt photo didn't upload. Check your signal and try again.", "bad"); return; }
     }
     const row = { truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim() || null,
       litres:num($("fLitres").value), price_per_l:num($("fPpl").value), gst:num($("fGst").value), total, odometer:$("fOdo").value.trim() || null, receipt_path:path, paid_by:F.paid };
@@ -1782,6 +1782,7 @@
                 fitter:v("fitter"), helper:v("helper"), scope:v("scope"), shop:v("shop"), sub:$("tk-sub").checked ? "Yes" : "" };
     if (!d.truck) { msg("tkMsg", "Tap your truck number at the top.", "bad"); return; }
     if (!(Number(d.hours) > 0) && !(Number(d.shop) > 0)) { msg("tkMsg", "Enter billable hours, shop hours, or both.", "bad"); return; }
+    if (Number(d.hours || 0) + Number(d.shop || 0) > 24) { msg("tkMsg", "Billable plus shop hours can't be more than 24 in one day.", "bad"); return; }
     if (Number(d.hours) > 0 && (!d.client || d.client === "Shop")) { msg("tkMsg", "Pick the client for the billable hours.", "bad"); return; }
     if (!(Number(d.hours) > 0)) { d.hours = 0; if (!d.client) d.client = "Shop"; }
     store("mp_tk_last", { truck:d.truck, client:d.client, job:d.job, supervisor:d.supervisor, location:d.location, fitter:d.fitter, helper:d.helper });
@@ -1797,7 +1798,7 @@
       $("tkSummary").innerHTML = [["Truck", d.truck], ["Client", d.client + (d.job ? " · Job " + d.job : "")], ["Crew", crewTxt], ["Hours", hrsTxt]]
         .map(([k, val]) => `<div><span>${k}</span><b${k === "Hours" ? ' style="color:var(--gold)"' : ""}>${esc(val)}</b></div>`).join("");
       $("tkForm").hidden = true; $("tkDone").hidden = false; $("v-ticket").scrollTop = 0;
-      ["hours", "shop", "scope"].forEach(k => $("tk-" + k).value = ""); $("tk-sub").checked = false; zeroCls();
+      ["hours", "shop", "scope", "date"].forEach(k => $("tk-" + k).value = ""); $("tk-sub").checked = false; zeroCls();
       toast("Field ticket sent");
     }).catch(() => { btn.disabled = false; btn.textContent = "Submit field ticket"; msg("tkMsg", "Not sent. Your ticket is still filled in. Tap submit again when you have signal.", "bad"); });
   });
@@ -2053,7 +2054,7 @@
 
   async function onNewMessage(m) {
     if (C.open && m.thread_id === C.open.id) {
-      if (!C.msgs.find(x => x.id === m.id)) { await signUrls([m]); C.msgs.push(m); C.pending = C.pending.filter(p => p.tmp !== m.client_tmp); renderMsgs(m.sender_id === S.user.id); }
+      if (!C.msgs.find(x => x.id === m.id)) { await signUrls([m]); C.msgs.push(m); renderMsgs(m.sender_id === S.user.id); }
       if (!document.hidden) markRead(); else loadThreads();
     } else loadThreads();
   }
