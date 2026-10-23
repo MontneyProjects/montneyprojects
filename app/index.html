@@ -1299,6 +1299,7 @@
     if (!F.truck) { const last = (store("mp_tk_last") || {}).truck; if (last) F.truck = last; }
     $("fTruck").innerHTML = TRUCKS.map(t => `<button type="button" class="chipbtn" data-ftruck="${esc(t)}" aria-pressed="${F.truck === t}">${t === "Skid steer" ? "Skid" : esc(t)}</button>`).join("");
     if (!$("fDate").value) $("fDate").value = iso(new Date());
+    $("fDate").max = iso(new Date(Date.now() + 864e5));   // stops a mis-tapped future date
     $("fHistHead").textContent = S.admin ? "All fuel" : "Your recent fill-ups";
     $("fFilters").hidden = !S.admin;
     if (S.admin && $("fTruckF").options.length < 2) $("fTruckF").innerHTML = `<option value="">All trucks</option>` + TRUCKS.map(t => `<option>${esc(t)}</option>`).join("");
@@ -1390,6 +1391,13 @@
     if (!F.paid) { msg("fMsg", "Tap Fuel card or My own money.", "bad"); $("fPaid").scrollIntoView({ block:"center", behavior:"smooth" }); return; }
     if (F.paid === "employee" && !F.file && !confirm("No receipt photo. You may not get paid back without one. Save anyway?")) return;
     const total = num($("fTotal").value); if (!(total > 0)) { msg("fMsg", "Enter the total from the receipt.", "bad"); return; }
+    // Pumps in BC/AB show cents per litre (e.g. 154.9). Turn that into dollars (1.549) instead of letting the save fail.
+    let ppl = num($("fPpl").value); if (ppl >= 50 && ppl < 400) { ppl = Math.round(ppl * 100) / 10000; $("fPpl").value = String(ppl); }
+    const litres = num($("fLitres").value), gst = num($("fGst").value);
+    if (ppl != null && ppl >= 20) { msg("fMsg", "$ / litre looks wrong. Enter it like 1.549.", "bad"); return; }
+    if (litres != null && litres >= 5000) { msg("fMsg", "Litres looks too high. Check the receipt.", "bad"); return; }
+    if (total >= 20000) { msg("fMsg", "Total looks too high. Check the receipt.", "bad"); return; }
+    if (gst != null && (gst >= 2000 || gst > total)) { msg("fMsg", "GST can't be more than the total. Check the receipt.", "bad"); return; }
     $("fSave").disabled = true; msg("fMsg", "Saving...");
     let path = null;
     if (F.file) {
@@ -1397,11 +1405,11 @@
       const up = await sb.storage.from("fuel-receipts").upload(path, F.file, { contentType:"image/jpeg" });
       if (up.error) { $("fSave").disabled = false; msg("fMsg", "The receipt photo didn't upload. Check your signal and try again.", "bad"); return; }
     }
-    const row = { truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim() || null,
-      litres:num($("fLitres").value), price_per_l:num($("fPpl").value), gst:num($("fGst").value), total, odometer:$("fOdo").value.trim() || null, receipt_path:path, paid_by:F.paid };
+    const row = { truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim().slice(0, 120) || null,
+      litres, price_per_l:ppl, gst, total, odometer:$("fOdo").value.trim().slice(0, 20) || null, receipt_path:path, paid_by:F.paid };
     const { error } = await sb.from("fuel_logs").insert(row);
     $("fSave").disabled = false;
-    if (error) { msg("fMsg", "Didn't save. Check your signal and try again.", "bad"); return; }
+    if (error) { msg("fMsg", /^(22|23)/.test(error.code || "") ? "Didn't save. One of the numbers doesn't look right. Check them against the receipt." : "Didn't save. Check your signal and try again.", "bad"); return; }
     toast(F.paid === "employee" ? "Saved. Flagged for pay-back ⛽" : "Fuel saved ⛽"); msg("fMsg", ""); setPaid(null);
     F.file = null; ["fStation", "fLitres", "fPpl", "fGst", "fTotal", "fOdo"].forEach(id => $(id).value = "");
     $("fShot").innerHTML = `${svg("camera")}Snap the receipt<small>The app reads the litres and cost for you</small>`;
@@ -1560,7 +1568,7 @@
   });
   $("eFilter").addEventListener("change", () => renderExp());
   fillPaid();
-  function openExp() { if (!$("eDate").value) $("eDate").value = iso(new Date()); loadExp(); }
+  function openExp() { if (!$("eDate").value) $("eDate").value = iso(new Date()); $("eDate").max = iso(new Date(Date.now() + 864e5)); loadExp(); }
   $("eShot").addEventListener("click", () => $("eFile").click());
   $("eVendor").addEventListener("change", () => { const g = guessCat($("eVendor").value); if (g) $("eCat").value = g; });
   $("eFile").addEventListener("change", async () => {
@@ -1588,6 +1596,7 @@
     e.preventDefault();
     const total = num($("eTotal").value); if (!(total > 0)) { msg("eMsg", "Enter the total.", "bad"); return; }
     const paidWith = $("ePaid").value; if (!paidWith || paidWith === PAY_ADD) { msg("eMsg", "Pick what it was paid with.", "bad"); $("ePaid").focus(); return; }
+    const eGst = num($("eGst").value); if (eGst != null && eGst > total) { msg("eMsg", "GST can't be more than the total. Check the receipt.", "bad"); return; }
     if (!E.file && !confirm("Save without a receipt photo?")) return;
     $("eSave").disabled = true; msg("eMsg", "Saving...");
     let path = null;
@@ -1596,10 +1605,10 @@
       const up = await sb.storage.from("expense-receipts").upload(path, E.file, { contentType:E.type });
       if (up.error) { $("eSave").disabled = false; msg("eMsg", "The photo didn't upload. Check your signal and try again.", "bad"); return; }
     }
-    const row = { exp_date:$("eDate").value, vendor:$("eVendor").value.trim() || null, total, gst:num($("eGst").value), category:$("eCat").value, paid_personally:$("ePersonal").checked, paid_with:paidWith, notes:$("eNote").value.trim() || null, receipt_path:path };
+    const row = { exp_date:$("eDate").value, vendor:$("eVendor").value.trim().slice(0, 120) || null, total, gst:eGst, category:$("eCat").value, paid_personally:$("ePersonal").checked, paid_with:paidWith, notes:$("eNote").value.trim().slice(0, 500) || null, receipt_path:path };
     const { error } = await sb.from("expenses").insert(row);
     $("eSave").disabled = false;
-    if (error) { msg("eMsg", "Didn't save. Try again.", "bad"); return; }
+    if (error) { msg("eMsg", /^(22|23)/.test(error.code || "") ? "Didn't save. One of the numbers doesn't look right. Check them against the receipt." : "Didn't save. Check your signal and try again.", "bad"); return; }
     lsSet("mp_last_card", paidWith);
     toast("Receipt saved 🧾"); msg("eMsg", "Saved. It goes into QuickBooks within the hour.", "ok");
     E.file = null; ["eVendor", "eTotal", "eGst", "eNote"].forEach(id => $(id).value = ""); $("ePersonal").checked = false;
@@ -1758,6 +1767,7 @@
   function showTicketForm() {
     $("tkGate").hidden = true; $("tkDone").hidden = true; $("tkForm").hidden = false;
     if (!$("tk-date").value) $("tk-date").value = iso(new Date());
+    $("tk-date").max = iso(new Date(Date.now() + 864e5));   // no tickets for next week by mistake
     const last = store("mp_tk_last") || {};
     ["client", "job", "supervisor", "location", "fitter", "helper"].forEach(k => { if (last[k] && !$("tk-" + k).value) $("tk-" + k).value = last[k]; });
     if (!$("tk-truck").value && last.truck) setTruck(last.truck);
