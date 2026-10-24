@@ -113,7 +113,9 @@
     // Save a finished form on the phone, then try to send it right away.
     add: function (o) {
       var item = { id: Date.now(), blob: o.blob, fname: o.fname, subject: o.subject, fields: o.fields || {}, track: o.track || null, saved: new Date().toISOString() };
-      return put(item).then(function () { return flush(); }).then(function (r) {
+      // If a send is already running (the every-minute retry), wait for it, then send this one. Otherwise the
+      // new form sat in the outbox and the crew member was told "no signal" when there was signal.
+      return put(item).then(function () { return running ? running.then(flush, flush) : flush(); }).then(function (r) {
         return { id: item.id, sent: r.sent.indexOf(item.id) >= 0 };
       });
     },
