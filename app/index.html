@@ -547,7 +547,7 @@
       <span><span class="label">Truck defects</span><span class="n" id="defCounts"></span></span><span data-i="chev"></span>
     </button>
     <div class="boardhead"><h2>FLHA leaderboard</h2><span id="boardRange"></span></div>
-    <p class="boardnote">Days with an FLHA out of days worked. Top spot at the end of the month gets the gift card.</p>
+    <p class="boardnote">Days with an FLHA out of days worked. Top spot at the end of the month gets the gift card. <b id="boardMin"></b></p>
     <div class="podium" id="podium"></div>
     <div id="board"><p class="empty">Loading...</p></div>
   </section>
@@ -824,6 +824,7 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="sendq.js"></script>
 <script>
 (() => {
   const SUPABASE_URL = "https://nwcbvchcdsbwwnnbtyht.supabase.co";
@@ -880,6 +881,8 @@
 
   // service worker = installable app
   if ("serviceWorker" in navigator) addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  // Forms saved on the phone with no signal send from here too; refresh the check marks when one goes out.
+  if (window.MontneyOutbox) MontneyOutbox.onChange(r => { if (r.sent.length && S.user) setTimeout(loadToday, 1500); });
 
   // splash: show briefly on a cold start
   const started = Date.now();
@@ -1040,6 +1043,7 @@
       $("todaySub").textContent = S.admin ? "Here's how the crew is doing today." : "Your name isn't on the crew list yet. Ask the office to add you.";
     }
     renderTiles(mine); renderSafetyList(mine);
+    if (window.MontneyOutbox) MontneyOutbox.count().then(n => { if (n) $("todaySub").textContent = `${n === 1 ? "1 form is" : n + " forms are"} saved on this phone and will send on their own when you get service.`; });
     if (S.admin) { renderCrew(done); loadDefects(true); $("dispCard").hidden = false; $("fuelCard").hidden = false; loadFuel(true); $("expCard").hidden = false; loadExp(true); }
     loadOrders();
     loadWeek();
@@ -1102,10 +1106,13 @@
     $("sHours").textContent = S.crew ? fmtH(bill + shop) : "-";
     $("pTotal").textContent = fmtH(bill + shop); $("pBill").textContent = fmtH(bill); $("pShop").textContent = fmtH(shop); $("pDays").textContent = days;
     $("payTitle").textContent = mdy(p.s) + " – " + p.e.getDate();
-    const rows = (lb.data || []).map(r => ({ ...r, pct:r.worked_days ? r.flha_days / r.worked_days : -1 }))
-      .sort((a, b) => b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
+    // To be ranked you need at least half as many days as whoever worked the most this month.
+    const minDays = Math.ceil(Math.max(0, ...(lb.data || []).map(r => r.worked_days || 0)) / 2);
+    const rows = (lb.data || []).map(r => ({ ...r, pct:r.worked_days ? r.flha_days / r.worked_days : -1, q:r.worked_days > 0 && r.worked_days >= minDays }))
+      .sort((a, b) => (b.q - a.q) || b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
     let rank = 0;
-    const ranked = rows.map(r => ({ ...r, rank:r.worked_days ? ++rank : null }));
+    const ranked = rows.map(r => ({ ...r, rank:r.q ? ++rank : null }));
+    $("boardMin").textContent = minDays > 1 ? `Need ${minDays}+ days worked to rank` : "";
     const mine = ranked.find(r => r.crew_name === me);
     const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
     $("sRank").textContent = mine && mine.rank ? ord(mine.rank) : "-";
@@ -1801,7 +1808,7 @@
       btn.disabled = false; btn.textContent = "Submit field ticket";
       if (j.error === "code") { store("mp_tk_code", ""); tkCode = ""; $("tkForm").hidden = true; $("tkGate").hidden = false; msg("tkGateMsg", "The crew code changed. Enter the new one.", "bad"); return; }
       if (!j.saved) { msg("tkMsg", "Not saved. Try again.", "bad"); return; }
-      if (S.user) sb.functions.invoke("activity", { body:{ mode:"ticket", t:{ date:d.date, truck:d.truck, client:d.client, job:d.job, hours:d.hours, shop:d.shop } } }).catch(() => {});
+      if (S.user) sb.functions.invoke("activity", { body:{ mode:"ticket", t:{ date:d.date, truck:d.truck, client:d.client, job:d.job, hours:d.hours, shop:d.shop, fitter:d.fitter } } }).catch(() => {});
       $("tkDoneMsg").textContent = j.ok ? `Added to the ${j.tab || d.truck} tab. Your hours show on your calendar within the hour.` : "Saved, but it couldn't be put on your truck's tab. Tell the office so they can move it.";
       const crewTxt = [d.fitter, d.helper && d.helper !== "No helper" ? d.helper : ""].filter(Boolean).map(shortName).join(" + ");
       const hrsTxt = [Number(d.hours) > 0 ? d.hours + " billable" : "", Number(d.shop) > 0 ? d.shop + " shop" : ""].filter(Boolean).join(" · ");

@@ -551,16 +551,18 @@
     card.hidden = false;
     $('boardPeriod').textContent = shortDate(p.s) + ' to ' + shortDate(p.e);
     const me = crewNameOf(state.profile);
-    const rows = (data || []).map(r => ({ ...r, pct: r.worked_days ? r.flha_days / r.worked_days : -1 }))
-      .sort((a, b) => b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
+    // To be ranked you need at least half as many days as whoever worked the most in the period.
+    const minDays = Math.ceil(Math.max(0, ...(data || []).map(r => r.worked_days || 0)) / 2);
+    const rows = (data || []).map(r => ({ ...r, pct: r.worked_days ? r.flha_days / r.worked_days : -1, q: r.worked_days > 0 && r.worked_days >= minDays }))
+      .sort((a, b) => (b.q - a.q) || b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
     const list = $('board');
     list.replaceChildren();
     let rank = 0;
     for (const r of rows) {
       const worked = r.worked_days > 0, perfect = worked && r.flha_days === r.worked_days;
-      if (worked) rank++;
-      const li = el('li', [perfect ? 'perfect' : '', r.crew_name === me ? 'me' : '', worked ? '' : 'idle'].join(' ').trim());
-      li.append(el('span', 'rk', worked ? String(rank) : '-'));
+      if (r.q) rank++;
+      const li = el('li', [perfect ? 'perfect' : '', r.crew_name === me ? 'me' : '', r.q ? '' : 'idle'].join(' ').trim());
+      li.append(el('span', 'rk', r.q ? String(rank) : '-'));
       li.append(el('span', 'nm', (perfect ? '\u{1F3C6} ' : '') + r.display_name));
       li.append(el('span', 'sc', worked ? r.flha_days + ' / ' + r.worked_days + ' days' : 'No days worked'));
       const bar = el('div', 'bar'), fill = el('i');
