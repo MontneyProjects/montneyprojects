@@ -298,7 +298,10 @@
 </div>
 
 <script>
-  const today = new Date().toISOString().split("T")[0];
+  const today = (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(); // local date, not UTC (evening forms were getting tomorrow's date)
+  // Latest date a form can carry: tomorrow (local). Stops a mis-tapped month/year from crediting a day not worked yet.
+  function maxFormDate() { var d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  document.getElementById("date").max = maxFormDate();
   document.getElementById("date").value = today;
   const now = new Date();
   const h = now.getHours(), m = now.getMinutes().toString().padStart(2,"0");
@@ -349,8 +352,13 @@
   const canvas = document.getElementById("sigCanvas");
   const ctx = canvas.getContext("2d");
   let drawing = false, lastX = 0, lastY = 0;
+  let lastSigW = 0, sigInked = false;   // sigInked: has anything been drawn in the signature box
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
+    // Only redraw when the width really changes. Setting canvas.width erases it, and iPhone/Android fire
+    // resize when the toolbar or keyboard shows, which was wiping a finished signature.
+    if (Math.round(rect.width) === lastSigW) return;
+    lastSigW = Math.round(rect.width); sigInked = false;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
@@ -368,7 +376,7 @@
   canvas.addEventListener("mousemove", e => {
     if (!drawing) return;
     const p = getPos(e);
-    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); sigInked = true;
     lastX = p.x; lastY = p.y;
   });
   canvas.addEventListener("mouseup", () => drawing = false);
@@ -377,11 +385,11 @@
   canvas.addEventListener("touchmove", e => {
     e.preventDefault(); if (!drawing) return;
     const p = getPos(e);
-    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); sigInked = true;
     lastX = p.x; lastY = p.y;
   }, { passive: false });
   canvas.addEventListener("touchend", () => drawing = false);
-  function clearSig() { const rect = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, rect.width, rect.height); }
+  function clearSig() { sigInked = false; const rect = canvas.getBoundingClientRect(); ctx.clearRect(0, 0, rect.width, rect.height); }
 
   function submitForm() {
     const foreman = document.getElementById("foreman").value.trim();
@@ -389,6 +397,8 @@
     if (!document.getElementById("crewName").value) { alert("Please pick your name before saving."); return; }
     if (!foreman) { alert("Please enter foreman name before saving."); return; }
     if (!date) { alert("Please enter the date before saving."); return; }
+    if (date > maxFormDate()) { alert("The date is in the future. Fix the date before sending."); return; }
+    if (!sigInked) { alert("Please sign in the signature box before sending."); document.getElementById("sigCanvas").scrollIntoView({ block: "center" }); return; }
     const safeName = foreman.replace(/\s+/g, "_");
     document.title = `Toolbox_${safeName}_${date}`;
     sendPdf({ title: "Montney Projects Corp \u2013 Toolbox Meeting", who: document.getElementById("foreman").value.trim(), date: date, extra: { Site: document.getElementById("site").value.trim(), Topic: document.getElementById("topic").value.trim(), "Sent by": document.getElementById("crewName").value }, track: trackInfo("Toolbox", "crewName", date) });
