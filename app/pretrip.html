@@ -490,8 +490,20 @@
 
 <script>
   // Defaults
-  const today = new Date().toISOString().split("T")[0];
+  const today = (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(); // local date, not UTC (evening forms were getting tomorrow's date)
+  // Latest date a form can carry: tomorrow (local). Stops a mis-tapped month/year from crediting a day not worked yet.
+  function maxFormDate() { var d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  document.getElementById("date").max = maxFormDate();
   document.getElementById("date").value = today;
+
+  // Form left open overnight: move an untouched date to today when the page comes back (pageshow / back to the app).
+  (function(){ var touched = false, el = document.getElementById("date");
+    el.addEventListener("change", function(){ touched = true; });
+    function refresh(){ if (touched) return; var d = new Date(), t = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      el.max = maxFormDate(); if (el.value !== t) { el.value = t; var c = document.getElementById("confirmDate"); if (c) c.value = t; } }
+    addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") refresh(); });
+  })();
   const now = new Date();
   document.getElementById("time").value = now.toTimeString().slice(0,5);
 
@@ -536,8 +548,13 @@
   const ctx = canvas.getContext("2d");
   let drawing = false, lastX = 0, lastY = 0;
 
+  let lastSigW = 0, sigInked = false;   // sigInked: has anything been drawn in the signature box
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
+    // Only redraw when the width really changes. Setting canvas.width erases it, and iPhone/Android fire
+    // resize when the toolbar or keyboard shows, which was wiping a finished signature.
+    if (Math.round(rect.width) === lastSigW) return;
+    lastSigW = Math.round(rect.width); sigInked = false;
     const dpr = window.devicePixelRatio || 1;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
@@ -559,7 +576,7 @@
   canvas.addEventListener("mousemove", e => {
     if (!drawing) return;
     const p = getPos(e);
-    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); sigInked = true;
     lastX = p.x; lastY = p.y;
   });
   canvas.addEventListener("mouseup", () => drawing = false);
@@ -569,12 +586,12 @@
     e.preventDefault();
     if (!drawing) return;
     const p = getPos(e);
-    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke(); sigInked = true;
     lastX = p.x; lastY = p.y;
   }, { passive: false });
   canvas.addEventListener("touchend", () => drawing = false);
 
-  function clearSig() {
+  function clearSig() { sigInked = false;
     const rect = canvas.getBoundingClientRect();
     ctx.clearRect(0, 0, rect.width, rect.height);
   }
@@ -600,7 +617,7 @@
     var box = input.parentNode.querySelector(".dphotos");
     Array.prototype.forEach.call(input.files || [], function (file) {
       var tile = document.createElement("span"); tile.textContent = "Uploading"; box.appendChild(tile);
-      var d = document.getElementById("date").value || new Date().toISOString().slice(0, 10);
+      var d = document.getElementById("date").value || today;
       var path = "pretrip/" + d + "/" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + ".jpg";
       var job = dpShrink(file).then(function (blob) {
         tile.innerHTML = ""; var im = document.createElement("img"); im.src = URL.createObjectURL(blob); tile.appendChild(im);
@@ -631,14 +648,21 @@
       var note = next && next.classList.contains("defect-row") ? (next.querySelector("input") || {}).value || "" : "";
       defects.push({ item: (row.cells[0].textContent || "").trim().slice(0, 60), note: note.trim().slice(0, 140) });
     });
-    return { unit: v("unitNum"), plate: v("plate"), odometer: v("odometer"), defects: defects.slice(0, 25), notes: ((document.getElementById("notes") || {}).value || "").trim().slice(0, 300), photos: dpPhotos.slice(0, 20) };
+    return { unit: v("unitNum"), plate: v("plate"), odometer: v("odometer"), defects: defects.slice(0, 25), notes: ((document.getElementById("notes") || {}).value || "").trim().slice(0, 300), photos: dpPhotos.filter(function (p) { return defects.some(function (d) { return d.item === String(p.item).slice(0, 60); }); }).slice(0, 20) };
   }
   async function submitForm() {
-    if (dpUploads.length) { var sb2 = document.getElementById("sendBtn"); sb2.textContent = "UPLOADING PHOTOS..."; await Promise.allSettled(dpUploads); sb2.textContent = "SUBMIT INSPECTION"; }
+    if (dpUploads.length) { var sb2 = document.getElementById("sendBtn"); sb2.textContent = "UPLOADING PHOTOS..."; await Promise.race([Promise.allSettled(dpUploads), new Promise(function (r) { setTimeout(r, 20000); })]); sb2.textContent = "SUBMIT INSPECTION"; }
     const name = document.getElementById("driverName").value.trim();
     const date = document.getElementById("date").value;
     if (!name) { alert("Please pick your name before saving."); return; }
     if (!date)  { alert("Please enter the date before saving."); return; }
+    if (date > maxFormDate()) { alert("The date is in the future. Fix the date before sending."); return; }
+    if (!document.getElementById("unitNum").value.trim()) { alert("Please enter the unit number."); document.getElementById("unitNum").focus(); return; }
+    var rows = Array.prototype.filter.call(document.querySelectorAll("tr"), function (tr) { return tr.querySelector(".pf-btn"); });
+    var left = rows.filter(function (tr) { return !tr.querySelector(".pf-btn.active"); }).length;
+    if (rows.length && left === rows.length) { alert("Nothing is checked yet. Tap OK or D on each item."); return; }
+    if (left && !confirm(left + (left === 1 ? " item isn't" : " items aren't") + " checked. Send anyway?")) return;
+    if (!sigInked) { alert("Please sign in the signature box before sending."); document.getElementById("sigCanvas").scrollIntoView({ block: "center" }); return; }
     sendPdf({ title: "Montney Projects Corp \u2013 Pre-Trip Inspection", who: document.getElementById("driverName").value.trim(), date: date, extra: { Unit: document.getElementById("unitNum").value.trim(), "Defects noted": String(document.querySelectorAll(".pf-btn.fail.active").length) }, track: Object.assign(trackInfo("Pre-Trip", "driverName", date), { details: preTripDetails() }) });
   }
 </script>
@@ -1174,7 +1198,7 @@ function sendTrack(rec) {
     body: JSON.stringify(rec)
   }).then(function (r) {
     if (r.ok) return true;
-    return r.status >= 500 ? false : true; // a rejected record (e.g. a very old date) won't succeed on retry, so drop it
+    return (r.status >= 500 || r.status === 408 || r.status === 429) ? false : true; // timeouts/rate limits retry; a rejected record (e.g. a very old date) won't succeed on retry, so drop it
   }).catch(function () { return false; });
 }
 
