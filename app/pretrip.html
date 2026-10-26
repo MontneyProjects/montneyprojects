@@ -495,6 +495,15 @@
   function maxFormDate() { var d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
   document.getElementById("date").max = maxFormDate();
   document.getElementById("date").value = today;
+
+  // Form left open overnight: move an untouched date to today when the page comes back (pageshow / back to the app).
+  (function(){ var touched = false, el = document.getElementById("date");
+    el.addEventListener("change", function(){ touched = true; });
+    function refresh(){ if (touched) return; var d = new Date(), t = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      el.max = maxFormDate(); if (el.value !== t) { el.value = t; var c = document.getElementById("confirmDate"); if (c) c.value = t; } }
+    addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") refresh(); });
+  })();
   const now = new Date();
   document.getElementById("time").value = now.toTimeString().slice(0,5);
 
@@ -639,7 +648,7 @@
       var note = next && next.classList.contains("defect-row") ? (next.querySelector("input") || {}).value || "" : "";
       defects.push({ item: (row.cells[0].textContent || "").trim().slice(0, 60), note: note.trim().slice(0, 140) });
     });
-    return { unit: v("unitNum"), plate: v("plate"), odometer: v("odometer"), defects: defects.slice(0, 25), notes: ((document.getElementById("notes") || {}).value || "").trim().slice(0, 300), photos: dpPhotos.slice(0, 20) };
+    return { unit: v("unitNum"), plate: v("plate"), odometer: v("odometer"), defects: defects.slice(0, 25), notes: ((document.getElementById("notes") || {}).value || "").trim().slice(0, 300), photos: dpPhotos.filter(function (p) { return defects.some(function (d) { return d.item === String(p.item).slice(0, 60); }); }).slice(0, 20) };
   }
   async function submitForm() {
     if (dpUploads.length) { var sb2 = document.getElementById("sendBtn"); sb2.textContent = "UPLOADING PHOTOS..."; await Promise.race([Promise.allSettled(dpUploads), new Promise(function (r) { setTimeout(r, 20000); })]); sb2.textContent = "SUBMIT INSPECTION"; }
@@ -1189,7 +1198,7 @@ function sendTrack(rec) {
     body: JSON.stringify(rec)
   }).then(function (r) {
     if (r.ok) return true;
-    return r.status >= 500 ? false : true; // a rejected record (e.g. a very old date) won't succeed on retry, so drop it
+    return (r.status >= 500 || r.status === 408 || r.status === 429) ? false : true; // timeouts/rate limits retry; a rejected record (e.g. a very old date) won't succeed on retry, so drop it
   }).catch(function () { return false; });
 }
 

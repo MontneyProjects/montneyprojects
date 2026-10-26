@@ -1002,6 +1002,10 @@
       sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle(),
       sb.from("crew").select("crew_name,display_name,driver,fitter,active").eq("active", true).order("display_name")
     ]);
+    // No signal: use the last good profile/crew list so the form tiles still show (forms work offline).
+    const ck = "mp_ctx_" + session.user.id;
+    if (p.error || r.error) { const c = store(ck) || {}; if (p.error) p.data = c.profile; if (r.error) r.data = c.roster; }
+    else store(ck, { profile: p.data, roster: r.data });
     S.profile = p.data || null; S.admin = !!(S.profile && S.profile.role === "admin");
     S.roster = r.data || [];
     S.crew = S.roster.find(c => c.crew_name === crewNameOf(S.profile)) || null;
@@ -1334,7 +1338,8 @@
   }
   // on-phone OCR fallback, capped at 40s so the "Reading" spinner always ends
   const ocrRead = async img => { const T = await loadTess(); const r = await Promise.race([T.recognize(img, "eng"), new Promise((_, rej) => setTimeout(() => rej(new Error("ocr timeout")), 40000))]); return r.data.text || ""; };
-  const num = s => { const n = parseFloat(String(s).replace(/[,\s]/g, "").replace(/[^\d.]/g, "")); return isNaN(n) ? null : n; };
+  const num = s => { let t = String(s == null ? "" : s).replace(/\s/g, ""); if (/^\$?\d+,\d{1,2}$/.test(t)) t = t.replace(",", ".");   // "85,40" (comma decimal key) is $85.40, not $8,540
+    const n = parseFloat(t.replace(/,/g, "").replace(/[^\d.]/g, "")); return isNaN(n) ? null : n; };
   // Claude vision reads the receipt; returns null if it's unavailable so the caller can fall back to on-phone OCR.
   async function aiRead(blob, kind) {
     try {
@@ -1471,7 +1476,7 @@
       return `<div class="fday"><h3>${esc(new Date(k + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" }))}<b>${money(tot)}</b></h3>
         ${S.admin && Object.keys(byTruck).length > 1 ? `<div class="ftrucks">${Object.keys(byTruck).sort().map(t => `<span>${esc(t)} · ${money(byTruck[t])}</span>`).join("")}</div>` : ""}
         ${list.map(r => `<div class="frow${r.receipt_path ? " tap" : ""}" data-fid="${r.id}">${r.receipt_path && fuelUrls[r.receipt_path] ? `<img src="${esc(fuelUrls[r.receipt_path])}" alt="Receipt">` : `<span class="noimg">${svg("fuel")}</span>`}
-          <span class="t"><b>Truck ${esc(r.truck)}${r.station ? " · " + esc(r.station) : ""}</b><small>${[r.litres ? Number(r.litres).toFixed(1) + " L" : "", r.price_per_l ? "$" + Number(r.price_per_l).toFixed(3) + "/L" : "", S.admin ? who(r.crew_name) : ""].filter(Boolean).join(" · ")}</small></span>
+          <span class="t"><b>Truck ${esc(r.truck)}${r.station ? " · " + esc(r.station) : ""}</b><small>${[r.litres ? Number(r.litres).toFixed(1) + " L" : "", r.price_per_l ? "$" + Number(r.price_per_l).toFixed(3) + "/L" : "", S.admin ? esc(who(r.crew_name)) : ""].filter(Boolean).join(" · ")}</small></span>
           <span style="text-align:right"><span class="amt">${money(r.total)}</span>${r.paid_by === "employee" ? `<br><span class="tag warn">Pay back${S.admin ? " " + esc(String(who(r.crew_name)).split(/\s+/)[0]) : ""}</span>` : r.paid_by === "fuel_card" ? `<br><span class="tag ok">Fuel card</span>` : ""}</span></div>`).join("")}</div>`;
     }).join("") : '<p class="empty">No fill-ups yet.</p>';
   }
@@ -1734,6 +1739,7 @@
   // ---------- navigation ----------
   const TAB_OF = { home:"home", crew:"home", defects:"home", dispatch:"home", fuel:"home", exp:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
   function go(v) {
+    if (!$("v-" + v)) v = "home";   // bad ?tab= or push link
     S.view = v;
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
     document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === TAB_OF[v]));
@@ -1977,8 +1983,9 @@
     return `<a class="linkcard" href="${esc(u)}" target="_blank" rel="noopener">${yt ? `<img src="https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg" alt="" loading="lazy">` : ""}<span class="lc">${svg(yt || /reel|video|watch|tiktok/.test(u) ? "play" : "link")}<span>${kind}${/reel/.test(u) ? " reel" : ""}<small>${esc(host)}</small></span></span></a>`;
   }
   function attHtml(a, mine) {
-    const url = C.urls[a.path] || a.local || "";
-    if ((a.type || "").startsWith("image/")) return `<img class="media" src="${esc(url)}" alt="${esc(a.name || "Photo")}" loading="lazy" data-view="${esc(url)}"${a.w ? ` width="${a.w}" height="${a.h}" style="aspect-ratio:${a.w}/${a.h}; height:auto"` : ""}>`;
+    const url = C.urls[a.path] || (/^blob:/.test(a.local || "") ? a.local : "");   // only our signed URLs or local previews, never a javascript: link
+    const w = Math.round(Number(a.w)) || 0, h = Math.round(Number(a.h)) || 0;      // numbers only, so a crafted attachment can't inject HTML
+    if ((a.type || "").startsWith("image/")) return `<img class="media" src="${esc(url)}" alt="${esc(a.name || "Photo")}" loading="lazy" data-view="${esc(url)}"${w && h ? ` width="${w}" height="${h}" style="aspect-ratio:${w}/${h}; height:auto"` : ""}>`;
     if ((a.type || "").startsWith("video/")) return `<video class="media" src="${esc(url)}#t=0.1" controls playsinline preload="metadata"></video>`;
     return `<a class="fileatt" href="${esc(url)}" target="_blank" rel="noopener" download="${esc(a.name || "file")}">${svg("file")}<span><b>${esc(a.name || "File")}</b><small>${a.size ? kb(a.size) : "File"}</small></span></a>`;
   }

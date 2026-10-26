@@ -748,6 +748,15 @@
   document.getElementById('date').value = today;
   document.getElementById('confirmDate').value = today;
 
+  // Form left open overnight: move an untouched date to today when the page comes back (pageshow / back to the app).
+  (function(){ var touched = false, el = document.getElementById("date");
+    el.addEventListener("change", function(){ touched = true; });
+    function refresh(){ if (touched) return; var d = new Date(), t = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      el.max = maxFormDate(); if (el.value !== t) { el.value = t; var c = document.getElementById("confirmDate"); if (c) c.value = t; } }
+    addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") refresh(); });
+  })();
+
   // AM/PM toggle
   function setAMPM(val) {
     document.getElementById('amBtn').classList.toggle('active', val === 'AM');
@@ -896,6 +905,8 @@
     if (!name) { alert('Please pick your name before saving.'); return; }
     if (!date)  { alert('Please enter the date before saving.'); return; }
     if (date > maxFormDate()) { alert('The date is in the future. Fix the date before sending.'); return; }
+    if (!document.getElementById('site').value.trim()) { alert('Please enter the site or location.'); document.getElementById('site').focus(); return; }
+    if (!Array.prototype.some.call(document.querySelectorAll('#hazardRows .hazard-block input[type=text]'), function (i) { return i.value.trim(); })) { alert('List at least one hazard before sending.'); var h = document.querySelector('#hazardRows input[type=text]'); if (h) h.focus(); return; }
     if (!sigInked) { alert('Please sign in the signature box before sending.'); document.getElementById('sigCanvas').scrollIntoView({ block: 'center' }); return; }
     const safeName = name.replace(/\s+/g, '_');
     document.title = `FLHA_${safeName}_${date}`;
@@ -1434,7 +1445,7 @@ function sendTrack(rec) {
     body: JSON.stringify(rec)
   }).then(function (r) {
     if (r.ok) return true;
-    return r.status >= 500 ? false : true; // a rejected record (e.g. a very old date) won't succeed on retry, so drop it
+    return (r.status >= 500 || r.status === 408 || r.status === 429) ? false : true; // timeouts/rate limits retry; a rejected record (e.g. a very old date) won't succeed on retry, so drop it
   }).catch(function () { return false; });
 }
 
