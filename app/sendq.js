@@ -67,7 +67,7 @@
     Promise.all(q.map(function (r) {
       return fetch(TRACK_URL + "safety_forms", { method: "POST", keepalive: true,
         headers: { apikey: TRACK_KEY, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(r) })
-        .then(function (x) { return x.ok || x.status < 500; }).catch(function () { return false; });
+        .then(function (x) { return x.ok || (x.status < 500 && x.status !== 408 && x.status !== 429); }).catch(function () { return false; });
     })).then(function (ok) {
       try { localStorage.setItem("montney_pending", JSON.stringify(q.filter(function (_, i) { return !ok[i]; }))); } catch (e) {}
     });
@@ -113,7 +113,9 @@
     // Save a finished form on the phone, then try to send it right away.
     add: function (o) {
       var item = { id: Date.now(), blob: o.blob, fname: o.fname, subject: o.subject, fields: o.fields || {}, track: o.track || null, saved: new Date().toISOString() };
-      return put(item).then(function () { return flush(); }).then(function (r) {
+      // If a send is already running (the every-minute retry), wait for it, then send this one. Otherwise the
+      // new form sat in the outbox and the crew member was told "no signal" when there was signal.
+      return put(item).then(function () { return running ? running.then(flush, flush) : flush(); }).then(function (r) {
         return { id: item.id, sent: r.sent.indexOf(item.id) >= 0 };
       });
     },

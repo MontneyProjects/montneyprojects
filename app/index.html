@@ -1002,6 +1002,10 @@
       sb.from("profiles").select("*").eq("id", session.user.id).maybeSingle(),
       sb.from("crew").select("crew_name,display_name,driver,fitter,active").eq("active", true).order("display_name")
     ]);
+    // No signal: use the last good profile/crew list so the form tiles still show (forms work offline).
+    const ck = "mp_ctx_" + session.user.id;
+    if (p.error || r.error) { const c = store(ck) || {}; if (p.error) p.data = c.profile; if (r.error) r.data = c.roster; }
+    else store(ck, { profile: p.data, roster: r.data });
     S.profile = p.data || null; S.admin = !!(S.profile && S.profile.role === "admin");
     S.roster = r.data || [];
     S.crew = S.roster.find(c => c.crew_name === crewNameOf(S.profile)) || null;
@@ -1110,21 +1114,26 @@
     const minDays = Math.ceil(Math.max(0, ...(lb.data || []).map(r => r.worked_days || 0)) / 2);
     const rows = (lb.data || []).map(r => ({ ...r, pct:r.worked_days ? r.flha_days / r.worked_days : -1, q:r.worked_days > 0 && r.worked_days >= minDays }))
       .sort((a, b) => (b.q - a.q) || b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
-    let rank = 0;
-    const ranked = rows.map(r => ({ ...r, rank:r.q ? ++rank : null }));
+    // Same score = same place. Before, a tie was broken by first name, so names early in the alphabet got the higher spot.
+    let rank = 0, n = 0, prev = null;
+    const ranked = rows.map(r => {
+      if (!r.q) return { ...r, rank:null };
+      n++; if (!prev || r.pct !== prev.pct || r.flha_days !== prev.flha_days) rank = n; prev = r;
+      return { ...r, rank };
+    });
     $("boardMin").textContent = minDays > 1 ? `Need ${minDays}+ days worked to rank` : "";
     const mine = ranked.find(r => r.crew_name === me);
     const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
     $("sRank").textContent = mine && mine.rank ? ord(mine.rank) : "-";
     $("sFlha").textContent = mine && mine.worked_days ? `${mine.flha_days}/${mine.worked_days}` : "";
     const top = ranked.filter(r => r.rank).slice(0, 3), rest = ranked.filter(r => !top.includes(r));
-    const pod = (r, place) => r ? `<div class="pod p${place}">${place === 1 ? svg("crown") : ""}<span class="av">${esc(initials(r.display_name))}</span><b>${esc(shortName(r.display_name))}</b><small>${ord(place)} · ${r.flha_days}/${r.worked_days}</small></div>` : `<div></div>`;
+    const pod = (r, place) => r ? `<div class="pod p${place}">${r.rank === 1 ? svg("crown") : ""}<span class="av">${esc(initials(r.display_name))}</span><b>${esc(shortName(r.display_name))}</b><small>${ord(r.rank)} · ${r.flha_days}/${r.worked_days}</small></div>` : `<div></div>`;
     $("podium").hidden = !top.length;
     $("podium").innerHTML = top.length ? pod(top[1], 2) + pod(top[0], 1) + pod(top[2], 3) : "";
     $("board").innerHTML = ranked.length ? rest.map(r => {
       const pct = r.worked_days ? Math.round(100 * r.flha_days / r.worked_days) : 0;
       return `<div class="lrow${r.crew_name === me ? " me" : ""}"><span class="rk">${r.rank || "–"}</span><span class="nm">${esc(r.display_name)}</span><span class="bar"><i style="width:${pct}%"></i></span><span class="sc">${r.worked_days ? r.flha_days + "/" + r.worked_days : "–"}</span></div>`;
-    }).join("") : '<p class="empty">No days worked yet this pay period.</p>';
+    }).join("") : '<p class="empty">No days worked yet this month.</p>';
   }
 
   // ---------- crew today (admin) ----------
@@ -1305,12 +1314,19 @@
   function openFuel() {
     if (!F.truck) { const last = (store("mp_tk_last") || {}).truck; if (last) F.truck = last; }
     $("fTruck").innerHTML = TRUCKS.map(t => `<button type="button" class="chipbtn" data-ftruck="${esc(t)}" aria-pressed="${F.truck === t}">${t === "Skid steer" ? "Skid" : esc(t)}</button>`).join("");
-    if (!$("fDate").value) $("fDate").value = iso(new Date());
+    // Fill today's date, and refresh it if the app sat open overnight (only if they didn't pick a date themselves).
+    if (!$("fDate").value || ($("fDate").dataset.auto === "1" && $("fDate").value !== iso(new Date()))) { $("fDate").value = iso(new Date()); $("fDate").dataset.auto = "1"; }
+    $("fDate").max = iso(new Date(Date.now() + 864e5));   // stops a mis-tapped future date
     $("fHistHead").textContent = S.admin ? "All fuel" : "Your recent fill-ups";
     $("fFilters").hidden = !S.admin;
     if (S.admin && $("fTruckF").options.length < 2) $("fTruckF").innerHTML = `<option value="">All trucks</option>` + TRUCKS.map(t => `<option>${esc(t)}</option>`).join("");
     loadFuel();
   }
+  $("fDate").addEventListener("change", () => { $("fDate").dataset.auto = ""; });
+  document.addEventListener("visibilitychange", () => {   // screen left open overnight: move an auto-filled date to today
+    if (document.hidden) return;
+    ["fDate", "eDate", "tk-date"].forEach(id => { const el = $(id); el.max = iso(new Date(Date.now() + 864e5)); if (el.dataset.auto === "1" && el.value !== iso(new Date())) el.value = iso(new Date()); });
+  });
   $("fTruck").addEventListener("click", e => { const b = e.target.closest("[data-ftruck]"); if (!b) return; F.truck = b.dataset.ftruck; $("fTruck").querySelectorAll("[data-ftruck]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ftruck === F.truck)); });
   $("fShot").addEventListener("click", () => $("fFile").click());
   let tessLoading = null;
@@ -1327,7 +1343,8 @@
   }
   // on-phone OCR fallback, capped at 40s so the "Reading" spinner always ends
   const ocrRead = async img => { const T = await loadTess(); const r = await Promise.race([T.recognize(img, "eng"), new Promise((_, rej) => setTimeout(() => rej(new Error("ocr timeout")), 40000))]); return r.data.text || ""; };
-  const num = s => { const n = parseFloat(String(s).replace(/[,\s]/g, "").replace(/[^\d.]/g, "")); return isNaN(n) ? null : n; };
+  const num = s => { let t = String(s == null ? "" : s).replace(/\s/g, ""); if (/^\$?\d+,\d{1,2}$/.test(t)) t = t.replace(",", ".");   // "85,40" (comma decimal key) is $85.40, not $8,540
+    const n = parseFloat(t.replace(/,/g, "").replace(/[^\d.]/g, "")); return isNaN(n) ? null : n; };
   // Claude vision reads the receipt; returns null if it's unavailable so the caller can fall back to on-phone OCR.
   async function aiRead(blob, kind) {
     try {
@@ -1378,7 +1395,7 @@
     try {
       let p = await aiRead(prep.upload, "fuel");
       if (!p) p = parseReceipt(await ocrRead(prep.ocr || prep.upload));
-      if (p.date) $("fDate").value = p.date;
+      if (p.date) { $("fDate").value = p.date; $("fDate").dataset.auto = ""; }
       if (p.station && !$("fStation").value) $("fStation").value = p.station;
       if (p.litres) $("fLitres").value = p.litres;
       if (p.ppl) $("fPpl").value = p.ppl;
@@ -1397,20 +1414,28 @@
     if (!F.paid) { msg("fMsg", "Tap Fuel card or My own money.", "bad"); $("fPaid").scrollIntoView({ block:"center", behavior:"smooth" }); return; }
     if (F.paid === "employee" && !F.file && !confirm("No receipt photo. You may not get paid back without one. Save anyway?")) return;
     const total = num($("fTotal").value); if (!(total > 0)) { msg("fMsg", "Enter the total from the receipt.", "bad"); return; }
+    // Pumps in BC/AB show cents per litre (e.g. 154.9). Turn that into dollars (1.549) instead of letting the save fail.
+    let ppl = num($("fPpl").value); if (ppl >= 50 && ppl < 400) { ppl = Math.round(ppl * 100) / 10000; $("fPpl").value = String(ppl); }
+    const litres = num($("fLitres").value), gst = num($("fGst").value);
+    if (ppl != null && ppl >= 20) { msg("fMsg", "$ / litre looks wrong. Enter it like 1.549.", "bad"); return; }
+    if (litres != null && litres >= 5000) { msg("fMsg", "Litres looks too high. Check the receipt.", "bad"); return; }
+    if (total >= 20000) { msg("fMsg", "Total looks too high. Check the receipt.", "bad"); return; }
+    if (gst != null && (gst >= 2000 || gst > total)) { msg("fMsg", "GST can't be more than the total. Check the receipt.", "bad"); return; }
     $("fSave").disabled = true; msg("fMsg", "Saving...");
     let path = null;
     if (F.file) {
       path = `${S.user.id}/${$("fDate").value}-${crypto.randomUUID().slice(0, 8)}.jpg`;
       const up = await sb.storage.from("fuel-receipts").upload(path, F.file, { contentType:"image/jpeg" });
-      if (up.error) path = null;
+      if (up.error) { $("fSave").disabled = false; msg("fMsg", "The receipt photo didn't upload. Check your signal and try again.", "bad"); return; }
     }
-    const row = { truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim() || null,
-      litres:num($("fLitres").value), price_per_l:num($("fPpl").value), gst:num($("fGst").value), total, odometer:$("fOdo").value.trim() || null, receipt_path:path, paid_by:F.paid };
+    const row = { truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim().slice(0, 120) || null,
+      litres, price_per_l:ppl, gst, total, odometer:$("fOdo").value.trim().slice(0, 20) || null, receipt_path:path, paid_by:F.paid };
     const { error } = await sb.from("fuel_logs").insert(row);
     $("fSave").disabled = false;
-    if (error) { msg("fMsg", "Didn't save. Check your signal and try again.", "bad"); return; }
+    if (error) { msg("fMsg", /^(22|23)/.test(error.code || "") ? "Didn't save. One of the numbers doesn't look right. Check them against the receipt." : "Didn't save. Check your signal and try again.", "bad"); return; }
     toast(F.paid === "employee" ? "Saved. Flagged for pay-back ⛽" : "Fuel saved ⛽"); msg("fMsg", ""); setPaid(null);
     F.file = null; ["fStation", "fLitres", "fPpl", "fGst", "fTotal", "fOdo"].forEach(id => $(id).value = "");
+    if ($("fDate").dataset.auto === "1") $("fDate").value = iso(new Date());
     $("fShot").innerHTML = `${svg("camera")}Snap the receipt<small>The app reads the litres and cost for you</small>`;
     loadFuel();
   });
@@ -1456,7 +1481,7 @@
       return `<div class="fday"><h3>${esc(new Date(k + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" }))}<b>${money(tot)}</b></h3>
         ${S.admin && Object.keys(byTruck).length > 1 ? `<div class="ftrucks">${Object.keys(byTruck).sort().map(t => `<span>${esc(t)} · ${money(byTruck[t])}</span>`).join("")}</div>` : ""}
         ${list.map(r => `<div class="frow${r.receipt_path ? " tap" : ""}" data-fid="${r.id}">${r.receipt_path && fuelUrls[r.receipt_path] ? `<img src="${esc(fuelUrls[r.receipt_path])}" alt="Receipt">` : `<span class="noimg">${svg("fuel")}</span>`}
-          <span class="t"><b>Truck ${esc(r.truck)}${r.station ? " · " + esc(r.station) : ""}</b><small>${[r.litres ? Number(r.litres).toFixed(1) + " L" : "", r.price_per_l ? "$" + Number(r.price_per_l).toFixed(3) + "/L" : "", S.admin ? who(r.crew_name) : ""].filter(Boolean).join(" · ")}</small></span>
+          <span class="t"><b>Truck ${esc(r.truck)}${r.station ? " · " + esc(r.station) : ""}</b><small>${[r.litres ? Number(r.litres).toFixed(1) + " L" : "", r.price_per_l ? "$" + Number(r.price_per_l).toFixed(3) + "/L" : "", S.admin ? esc(who(r.crew_name)) : ""].filter(Boolean).join(" · ")}</small></span>
           <span style="text-align:right"><span class="amt">${money(r.total)}</span>${r.paid_by === "employee" ? `<br><span class="tag warn">Pay back${S.admin ? " " + esc(String(who(r.crew_name)).split(/\s+/)[0]) : ""}</span>` : r.paid_by === "fuel_card" ? `<br><span class="tag ok">Fuel card</span>` : ""}</span></div>`).join("")}</div>`;
     }).join("") : '<p class="empty">No fill-ups yet.</p>';
   }
@@ -1567,8 +1592,9 @@
   });
   $("eFilter").addEventListener("change", () => renderExp());
   fillPaid();
-  function openExp() { if (!$("eDate").value) $("eDate").value = iso(new Date()); loadExp(); }
+  function openExp() { if (!$("eDate").value || ($("eDate").dataset.auto === "1" && $("eDate").value !== iso(new Date()))) { $("eDate").value = iso(new Date()); $("eDate").dataset.auto = "1"; } $("eDate").max = iso(new Date(Date.now() + 864e5)); loadExp(); }
   $("eShot").addEventListener("click", () => $("eFile").click());
+  $("eDate").addEventListener("change", () => { $("eDate").dataset.auto = ""; });
   $("eVendor").addEventListener("change", () => { const g = guessCat($("eVendor").value); if (g) $("eCat").value = g; });
   $("eFile").addEventListener("change", async () => {
     const file = $("eFile").files[0]; $("eFile").value = ""; if (!file) return;
@@ -1582,7 +1608,7 @@
     try {
       let p = await aiRead(prep.upload, "expense"), raw = "";
       if (!p) { raw = await ocrRead(prep.ocr || prep.upload); p = parseReceipt(raw); }
-      if (p.date) $("eDate").value = p.date;
+      if (p.date) { $("eDate").value = p.date; $("eDate").dataset.auto = ""; }
       if (p.station) $("eVendor").value = p.station;
       if (p.total) $("eTotal").value = p.total.toFixed(2);
       if (p.gst != null) $("eGst").value = p.gst.toFixed(2);
@@ -1595,6 +1621,7 @@
     e.preventDefault();
     const total = num($("eTotal").value); if (!(total > 0)) { msg("eMsg", "Enter the total.", "bad"); return; }
     const paidWith = $("ePaid").value; if (!paidWith || paidWith === PAY_ADD) { msg("eMsg", "Pick what it was paid with.", "bad"); $("ePaid").focus(); return; }
+    const eGst = num($("eGst").value); if (eGst != null && eGst > total) { msg("eMsg", "GST can't be more than the total. Check the receipt.", "bad"); return; }
     if (!E.file && !confirm("Save without a receipt photo?")) return;
     $("eSave").disabled = true; msg("eMsg", "Saving...");
     let path = null;
@@ -1603,13 +1630,15 @@
       const up = await sb.storage.from("expense-receipts").upload(path, E.file, { contentType:E.type });
       if (up.error) { $("eSave").disabled = false; msg("eMsg", "The photo didn't upload. Check your signal and try again.", "bad"); return; }
     }
-    const row = { exp_date:$("eDate").value, vendor:$("eVendor").value.trim() || null, total, gst:num($("eGst").value), category:$("eCat").value, paid_personally:$("ePersonal").checked, paid_with:paidWith, notes:$("eNote").value.trim() || null, receipt_path:path };
+    const row = { exp_date:$("eDate").value, vendor:$("eVendor").value.trim().slice(0, 120) || null, total, gst:eGst, category:$("eCat").value, paid_personally:$("ePersonal").checked, paid_with:paidWith, notes:$("eNote").value.trim().slice(0, 500) || null, receipt_path:path };
     const { error } = await sb.from("expenses").insert(row);
     $("eSave").disabled = false;
-    if (error) { msg("eMsg", "Didn't save. Try again.", "bad"); return; }
+    if (error) { msg("eMsg", /^(22|23)/.test(error.code || "") ? "Didn't save. One of the numbers doesn't look right. Check them against the receipt." : "Didn't save. Check your signal and try again.", "bad"); return; }
     lsSet("mp_last_card", paidWith);
     toast("Receipt saved 🧾"); msg("eMsg", "Saved. It goes into QuickBooks within the hour.", "ok");
-    E.file = null; ["eVendor", "eTotal", "eGst", "eNote"].forEach(id => $(id).value = ""); $("ePersonal").checked = false;
+    E.file = null; ["eVendor", "eTotal", "eGst", "eNote"].forEach(id => $(id).value = "");
+    if ($("eDate").dataset.auto === "1") $("eDate").value = iso(new Date());
+    $("ePersonal").checked = false;
     $("eShot").innerHTML = `${svg("camera")}Snap or upload a receipt<small>Photo or PDF</small>`;
     loadExp();
   });
@@ -1658,7 +1687,7 @@
       const k = iso(new Date(m.getFullYear(), m.getMonth(), d)), v = hrs[k], s = sent[k] || new Set();
       const cls = (k === todayK ? "t" : v ? "w" : k > todayK ? "f" : "") + (pays.has(k) ? " pay" : "") + (isCutoff(new Date(m.getFullYear(), m.getMonth(), d)) ? " cut" : "");
       const dot = v ? `<i style="background:${owed.every(x => s.has(x)) ? "var(--ok)" : "var(--bad)"}"></i>` : "<i></i>";
-      html += `<div class="${cls}"${pays.has(k) ? ` title="Payday${new Date(k + "T00:00:00").getDate() % 14 === 1 ? "" : " (moved up for the weekend or holiday)"}"` : ""}><span class="n">${d}</span><span class="h">${v ? fmtH(v) : k === todayK ? "today" : ""}</span>${dot}</div>`;
+      html += `<div class="${cls}"${pays.has(k) ? ` title="Payday${[1, 15].includes(new Date(k + "T00:00:00").getDate()) ? "" : " (moved up for the weekend or holiday)"}"` : ""}><span class="n">${d}</span><span class="h">${v ? fmtH(v) : k === todayK ? "today" : ""}</span>${dot}</div>`;
     }
     $("cal").innerHTML = html;
     loadDocs();
@@ -1715,6 +1744,7 @@
   // ---------- navigation ----------
   const TAB_OF = { home:"home", crew:"home", defects:"home", dispatch:"home", fuel:"home", exp:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
   function go(v) {
+    if (!$("v-" + v)) v = "home";   // bad ?tab= or push link
     S.view = v;
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
     document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.v === TAB_OF[v]));
@@ -1764,7 +1794,9 @@
   let tkCode = "";
   function showTicketForm() {
     $("tkGate").hidden = true; $("tkDone").hidden = true; $("tkForm").hidden = false;
-    if (!$("tk-date").value) $("tk-date").value = iso(new Date());
+    // Fill today's date, and move it to today if the app sat open overnight (only if they didn't pick a date themselves).
+    if (!$("tk-date").value || ($("tk-date").dataset.auto === "1" && $("tk-date").value !== iso(new Date()))) { $("tk-date").value = iso(new Date()); $("tk-date").dataset.auto = "1"; }
+    $("tk-date").max = iso(new Date(Date.now() + 864e5));   // no tickets for next week by mistake
     const last = store("mp_tk_last") || {};
     ["client", "job", "supervisor", "location", "fitter", "helper"].forEach(k => { if (last[k] && !$("tk-" + k).value) $("tk-" + k).value = last[k]; });
     if (!$("tk-truck").value && last.truck) setTruck(last.truck);
@@ -1775,6 +1807,7 @@
     tkCode = store("mp_tk_code") || "";
     if (tkCode) showTicketForm(); else { $("tkGate").hidden = false; $("tkForm").hidden = true; }
   }
+  $("tk-date").addEventListener("change", () => { $("tk-date").dataset.auto = ""; });
   $("tkGate").addEventListener("submit", e => {
     e.preventDefault(); const c = $("tk-code").value.trim(); msg("tkGateMsg", "Checking...");
     fetch(TICKETS_URL + "?pin=" + encodeURIComponent(c)).then(r => r.json()).then(j => {
@@ -1789,6 +1822,7 @@
                 fitter:v("fitter"), helper:v("helper"), scope:v("scope"), shop:v("shop"), sub:$("tk-sub").checked ? "Yes" : "" };
     if (!d.truck) { msg("tkMsg", "Tap your truck number at the top.", "bad"); return; }
     if (!(Number(d.hours) > 0) && !(Number(d.shop) > 0)) { msg("tkMsg", "Enter billable hours, shop hours, or both.", "bad"); return; }
+    if (Number(d.hours || 0) + Number(d.shop || 0) > 24) { msg("tkMsg", "Billable plus shop hours can't be more than 24 in one day.", "bad"); return; }
     if (Number(d.hours) > 0 && (!d.client || d.client === "Shop")) { msg("tkMsg", "Pick the client for the billable hours.", "bad"); return; }
     if (!(Number(d.hours) > 0)) { d.hours = 0; if (!d.client) d.client = "Shop"; }
     store("mp_tk_last", { truck:d.truck, client:d.client, job:d.job, supervisor:d.supervisor, location:d.location, fitter:d.fitter, helper:d.helper });
@@ -1804,7 +1838,7 @@
       $("tkSummary").innerHTML = [["Truck", d.truck], ["Client", d.client + (d.job ? " · Job " + d.job : "")], ["Crew", crewTxt], ["Hours", hrsTxt]]
         .map(([k, val]) => `<div><span>${k}</span><b${k === "Hours" ? ' style="color:var(--gold)"' : ""}>${esc(val)}</b></div>`).join("");
       $("tkForm").hidden = true; $("tkDone").hidden = false; $("v-ticket").scrollTop = 0;
-      ["hours", "shop", "scope"].forEach(k => $("tk-" + k).value = ""); $("tk-sub").checked = false; zeroCls();
+      ["hours", "shop", "scope", "date"].forEach(k => $("tk-" + k).value = ""); $("tk-sub").checked = false; zeroCls();
       toast("Field ticket sent");
     }).catch(() => { btn.disabled = false; btn.textContent = "Submit field ticket"; msg("tkMsg", "Not sent. Your ticket is still filled in. Tap submit again when you have signal.", "bad"); });
   });
@@ -1956,8 +1990,9 @@
     return `<a class="linkcard" href="${esc(u)}" target="_blank" rel="noopener">${yt ? `<img src="https://img.youtube.com/vi/${yt[1]}/hqdefault.jpg" alt="" loading="lazy">` : ""}<span class="lc">${svg(yt || /reel|video|watch|tiktok/.test(u) ? "play" : "link")}<span>${kind}${/reel/.test(u) ? " reel" : ""}<small>${esc(host)}</small></span></span></a>`;
   }
   function attHtml(a, mine) {
-    const url = C.urls[a.path] || a.local || "";
-    if ((a.type || "").startsWith("image/")) return `<img class="media" src="${esc(url)}" alt="${esc(a.name || "Photo")}" loading="lazy" data-view="${esc(url)}"${a.w ? ` width="${a.w}" height="${a.h}" style="aspect-ratio:${a.w}/${a.h}; height:auto"` : ""}>`;
+    const url = C.urls[a.path] || (/^blob:/.test(a.local || "") ? a.local : "");   // only our signed URLs or local previews, never a javascript: link
+    const w = Math.round(Number(a.w)) || 0, h = Math.round(Number(a.h)) || 0;      // numbers only, so a crafted attachment can't inject HTML
+    if ((a.type || "").startsWith("image/")) return `<img class="media" src="${esc(url)}" alt="${esc(a.name || "Photo")}" loading="lazy" data-view="${esc(url)}"${w && h ? ` width="${w}" height="${h}" style="aspect-ratio:${w}/${h}; height:auto"` : ""}>`;
     if ((a.type || "").startsWith("video/")) return `<video class="media" src="${esc(url)}#t=0.1" controls playsinline preload="metadata"></video>`;
     return `<a class="fileatt" href="${esc(url)}" target="_blank" rel="noopener" download="${esc(a.name || "file")}">${svg("file")}<span><b>${esc(a.name || "File")}</b><small>${a.size ? kb(a.size) : "File"}</small></span></a>`;
   }
@@ -2060,7 +2095,7 @@
 
   async function onNewMessage(m) {
     if (C.open && m.thread_id === C.open.id) {
-      if (!C.msgs.find(x => x.id === m.id)) { await signUrls([m]); C.msgs.push(m); C.pending = C.pending.filter(p => p.tmp !== m.client_tmp); renderMsgs(m.sender_id === S.user.id); }
+      if (!C.msgs.find(x => x.id === m.id)) { await signUrls([m]); C.msgs.push(m); renderMsgs(m.sender_id === S.user.id); }
       if (!document.hidden) markRead(); else loadThreads();
     } else loadThreads();
   }

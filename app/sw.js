@@ -1,7 +1,7 @@
 // MontneyPro service worker: makes the app installable and opens fast. Always tries the network first,
 // so changes on the site show up right away; falls back to the saved copy when there's no signal.
-const CACHE = "montneypro-v20";
-const SHELL = ["./", "index.html", "sendq.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "logo-cream.png", "truck.jpg"];
+const CACHE = "montneypro-v25";
+const SHELL = ["./", "index.html", "sendq.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "logo-cream.png", "truck.jpg", "flha.html", "pretrip.html", "toolbox.html"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
