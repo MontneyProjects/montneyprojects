@@ -499,8 +499,9 @@
   // Form left open overnight: move an untouched date to today when the page comes back (pageshow / back to the app).
   (function(){ var touched = false, el = document.getElementById("date");
     el.addEventListener("change", function(){ touched = true; });
+    var tmEl = document.getElementById("time"); if (tmEl) tmEl.addEventListener("change", function(){ tmEl.dataset.touched = "1"; });   // a time they typed is left alone
     function refresh(){ if (touched) return; var d = new Date(), t = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-      el.max = maxFormDate(); if (el.value !== t) { el.value = t; var c = document.getElementById("confirmDate"); if (c) c.value = t; } }
+      el.max = maxFormDate(); if (el.value !== t) { el.value = t; var c = document.getElementById("confirmDate"); if (c) c.value = t; var tm = document.getElementById("time"); if (tm && !tm.dataset.touched) { tm.value = d.toTimeString().slice(0,5); if (typeof setAMPM === "function") setAMPM(d.getHours() < 12 ? "AM" : "PM"); } } }
     addEventListener("pageshow", refresh);
     document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") refresh(); });
   })();

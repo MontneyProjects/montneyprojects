@@ -1114,15 +1114,20 @@
     const minDays = Math.ceil(Math.max(0, ...(lb.data || []).map(r => r.worked_days || 0)) / 2);
     const rows = (lb.data || []).map(r => ({ ...r, pct:r.worked_days ? r.flha_days / r.worked_days : -1, q:r.worked_days > 0 && r.worked_days >= minDays }))
       .sort((a, b) => (b.q - a.q) || b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
-    let rank = 0;
-    const ranked = rows.map(r => ({ ...r, rank:r.q ? ++rank : null }));
+    // Same score = same place. Before, a tie was broken by first name, so names early in the alphabet got the higher spot.
+    let rank = 0, n = 0, prev = null;
+    const ranked = rows.map(r => {
+      if (!r.q) return { ...r, rank:null };
+      n++; if (!prev || r.pct !== prev.pct || r.flha_days !== prev.flha_days) rank = n; prev = r;
+      return { ...r, rank };
+    });
     $("boardMin").textContent = minDays > 1 ? `Need ${minDays}+ days worked to rank` : "";
     const mine = ranked.find(r => r.crew_name === me);
     const ord = n => n + (n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th");
     $("sRank").textContent = mine && mine.rank ? ord(mine.rank) : "-";
     $("sFlha").textContent = mine && mine.worked_days ? `${mine.flha_days}/${mine.worked_days}` : "";
     const top = ranked.filter(r => r.rank).slice(0, 3), rest = ranked.filter(r => !top.includes(r));
-    const pod = (r, place) => r ? `<div class="pod p${place}">${place === 1 ? svg("crown") : ""}<span class="av">${esc(initials(r.display_name))}</span><b>${esc(shortName(r.display_name))}</b><small>${ord(place)} · ${r.flha_days}/${r.worked_days}</small></div>` : `<div></div>`;
+    const pod = (r, place) => r ? `<div class="pod p${place}">${r.rank === 1 ? svg("crown") : ""}<span class="av">${esc(initials(r.display_name))}</span><b>${esc(shortName(r.display_name))}</b><small>${ord(r.rank)} · ${r.flha_days}/${r.worked_days}</small></div>` : `<div></div>`;
     $("podium").hidden = !top.length;
     $("podium").innerHTML = top.length ? pod(top[1], 2) + pod(top[0], 1) + pod(top[2], 3) : "";
     $("board").innerHTML = ranked.length ? rest.map(r => {
@@ -1320,7 +1325,7 @@
   $("fDate").addEventListener("change", () => { $("fDate").dataset.auto = ""; });
   document.addEventListener("visibilitychange", () => {   // screen left open overnight: move an auto-filled date to today
     if (document.hidden) return;
-    ["fDate", "eDate"].forEach(id => { const el = $(id); if (el.dataset.auto === "1" && el.value !== iso(new Date())) el.value = iso(new Date()); });
+    ["fDate", "eDate", "tk-date"].forEach(id => { const el = $(id); el.max = iso(new Date(Date.now() + 864e5)); if (el.dataset.auto === "1" && el.value !== iso(new Date())) el.value = iso(new Date()); });
   });
   $("fTruck").addEventListener("click", e => { const b = e.target.closest("[data-ftruck]"); if (!b) return; F.truck = b.dataset.ftruck; $("fTruck").querySelectorAll("[data-ftruck]").forEach(x => x.setAttribute("aria-pressed", x.dataset.ftruck === F.truck)); });
   $("fShot").addEventListener("click", () => $("fFile").click());
@@ -1789,7 +1794,8 @@
   let tkCode = "";
   function showTicketForm() {
     $("tkGate").hidden = true; $("tkDone").hidden = true; $("tkForm").hidden = false;
-    if (!$("tk-date").value) $("tk-date").value = iso(new Date());
+    // Fill today's date, and move it to today if the app sat open overnight (only if they didn't pick a date themselves).
+    if (!$("tk-date").value || ($("tk-date").dataset.auto === "1" && $("tk-date").value !== iso(new Date()))) { $("tk-date").value = iso(new Date()); $("tk-date").dataset.auto = "1"; }
     $("tk-date").max = iso(new Date(Date.now() + 864e5));   // no tickets for next week by mistake
     const last = store("mp_tk_last") || {};
     ["client", "job", "supervisor", "location", "fitter", "helper"].forEach(k => { if (last[k] && !$("tk-" + k).value) $("tk-" + k).value = last[k]; });
@@ -1801,6 +1807,7 @@
     tkCode = store("mp_tk_code") || "";
     if (tkCode) showTicketForm(); else { $("tkGate").hidden = false; $("tkForm").hidden = true; }
   }
+  $("tk-date").addEventListener("change", () => { $("tk-date").dataset.auto = ""; });
   $("tkGate").addEventListener("submit", e => {
     e.preventDefault(); const c = $("tk-code").value.trim(); msg("tkGateMsg", "Checking...");
     fetch(TICKETS_URL + "?pin=" + encodeURIComponent(c)).then(r => r.json()).then(j => {
