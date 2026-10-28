@@ -64,12 +64,20 @@
     if (typeof window.logForm === "function") return window.logForm(rec);
     var q; try { q = JSON.parse(localStorage.getItem("montney_pending") || "[]"); } catch (e) { q = []; }
     q.push(rec);
+    try { localStorage.setItem("montney_pending", JSON.stringify(q)); } catch (e) {}
     Promise.all(q.map(function (r) {
       return fetch(TRACK_URL + "safety_forms", { method: "POST", keepalive: true,
         headers: { apikey: TRACK_KEY, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(r) })
-        .then(function (x) { return x.ok || x.status < 500; }).catch(function () { return false; });
+        .then(function (x) { return x.ok || (x.status < 500 && x.status !== 408 && x.status !== 429); }).catch(function () { return false; });
     })).then(function (ok) {
-      try { localStorage.setItem("montney_pending", JSON.stringify(q.filter(function (_, i) { return !ok[i]; }))); } catch (e) {}
+      // Re-read the list and take out only what was sent, so records added meanwhile aren't wiped.
+      try {
+        var sent = q.filter(function (_, i) { return ok[i]; }).map(function (r) { return JSON.stringify(r); });
+        var now = JSON.parse(localStorage.getItem("montney_pending") || "[]");
+        localStorage.setItem("montney_pending", JSON.stringify(now.filter(function (r) {
+          var k = sent.indexOf(JSON.stringify(r)); if (k < 0) return true; sent.splice(k, 1); return false;
+        })));
+      } catch (e) {}
     });
   }
 
@@ -113,7 +121,9 @@
     // Save a finished form on the phone, then try to send it right away.
     add: function (o) {
       var item = { id: Date.now(), blob: o.blob, fname: o.fname, subject: o.subject, fields: o.fields || {}, track: o.track || null, saved: new Date().toISOString() };
-      return put(item).then(function () { return flush(); }).then(function (r) {
+      // If a send is already running (the every-minute retry), wait for it, then send this one. Otherwise the
+      // new form sat in the outbox and the crew member was told "no signal" when there was signal.
+      return put(item).then(function () { return running ? running.then(flush, flush) : flush(); }).then(function (r) {
         return { id: item.id, sent: r.sent.indexOf(item.id) >= 0 };
       });
     },
@@ -129,5 +139,7 @@
     addEventListener("online", function () { setTimeout(flush, 3000); });
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") flush(); });
     setInterval(flush, 60000);
+    // Leaving the page mid-send: free the lock so the next page can send straight away instead of saying "no signal".
+    addEventListener("pagehide", function () { if (running) dropLock(); });
   }
 })();

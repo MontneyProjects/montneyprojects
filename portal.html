@@ -497,7 +497,7 @@
   }
 
   async function loadHours() {
-    const p = state.period;
+    const p = state.period, tok = state.hTok = (state.hTok || 0) + 1; // newer pick wins over a slow older one
     say('hMsg', '');
     const crew = state.admin ? crewNameOf(personById($('hrsWho').value)) : crewNameOf(state.profile);
     if (!crew) {
@@ -515,6 +515,7 @@
       state.roster = r.error ? [] : (r.data || []);
     }
     const [{ data, error }, f] = await Promise.all([q, fq]);
+    if (tok !== state.hTok) return; // the admin already picked someone or some period else
     state.hours = error ? [] : (data || []);
     state.forms = f.error ? [] : (f.data || []);
     state.crew = crew;
@@ -557,10 +558,11 @@
       .sort((a, b) => (b.q - a.q) || b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
     const list = $('board');
     list.replaceChildren();
-    let rank = 0;
+    // Same score = same place (1, 1, 3), the same rule the crew app uses, so nobody wins a tie by their name.
+    let rank = 0, n = 0, prev = null;
     for (const r of rows) {
       const worked = r.worked_days > 0, perfect = worked && r.flha_days === r.worked_days;
-      if (r.q) rank++;
+      if (r.q) { n++; if (!prev || r.pct !== prev.pct || r.flha_days !== prev.flha_days) rank = n; prev = r; }
       const li = el('li', [perfect ? 'perfect' : '', r.crew_name === me ? 'me' : '', r.q ? '' : 'idle'].join(' ').trim());
       li.append(el('span', 'rk', r.q ? String(rank) : '-'));
       li.append(el('span', 'nm', (perfect ? '\u{1F3C6} ' : '') + r.display_name));
