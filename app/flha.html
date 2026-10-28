@@ -1462,8 +1462,12 @@ function flushTrack() {
   if (!q.length) return;
   Promise.all(q.map(sendTrack)).then(function (ok) {
     var now = trackStore("montney_pending") || [];
-    var left = q.filter(function (_, i) { return !ok[i]; });
-    trackStore("montney_pending", left.concat(now.slice(q.length)));
+    // Take out only the records this run sent, matched by content. Another send may have added or removed
+    // records while this one was waiting on a weak signal; slicing by position used to drop those.
+    var sent = q.filter(function (_, i) { return ok[i]; }).map(function (r) { return JSON.stringify(r); });
+    trackStore("montney_pending", now.filter(function (r) {
+      var k = sent.indexOf(JSON.stringify(r)); if (k < 0) return true; sent.splice(k, 1); return false;
+    }));
   });
 }
 

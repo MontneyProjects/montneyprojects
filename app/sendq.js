@@ -64,12 +64,20 @@
     if (typeof window.logForm === "function") return window.logForm(rec);
     var q; try { q = JSON.parse(localStorage.getItem("montney_pending") || "[]"); } catch (e) { q = []; }
     q.push(rec);
+    try { localStorage.setItem("montney_pending", JSON.stringify(q)); } catch (e) {}
     Promise.all(q.map(function (r) {
       return fetch(TRACK_URL + "safety_forms", { method: "POST", keepalive: true,
         headers: { apikey: TRACK_KEY, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(r) })
         .then(function (x) { return x.ok || (x.status < 500 && x.status !== 408 && x.status !== 429); }).catch(function () { return false; });
     })).then(function (ok) {
-      try { localStorage.setItem("montney_pending", JSON.stringify(q.filter(function (_, i) { return !ok[i]; }))); } catch (e) {}
+      // Re-read the list and take out only what was sent, so records added meanwhile aren't wiped.
+      try {
+        var sent = q.filter(function (_, i) { return ok[i]; }).map(function (r) { return JSON.stringify(r); });
+        var now = JSON.parse(localStorage.getItem("montney_pending") || "[]");
+        localStorage.setItem("montney_pending", JSON.stringify(now.filter(function (r) {
+          var k = sent.indexOf(JSON.stringify(r)); if (k < 0) return true; sent.splice(k, 1); return false;
+        })));
+      } catch (e) {}
     });
   }
 
@@ -131,5 +139,7 @@
     addEventListener("online", function () { setTimeout(flush, 3000); });
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") flush(); });
     setInterval(flush, 60000);
+    // Leaving the page mid-send: free the lock so the next page can send straight away instead of saying "no signal".
+    addEventListener("pagehide", function () { if (running) dropLock(); });
   }
 })();

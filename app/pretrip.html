@@ -652,7 +652,13 @@
     return { unit: v("unitNum"), plate: v("plate"), odometer: v("odometer"), defects: defects.slice(0, 25), notes: ((document.getElementById("notes") || {}).value || "").trim().slice(0, 300), photos: dpPhotos.filter(function (p) { return defects.some(function (d) { return d.item === String(p.item).slice(0, 60); }); }).slice(0, 20) };
   }
   async function submitForm() {
-    if (dpUploads.length) { var sb2 = document.getElementById("sendBtn"); sb2.textContent = "UPLOADING PHOTOS..."; await Promise.race([Promise.allSettled(dpUploads), new Promise(function (r) { setTimeout(r, 20000); })]); sb2.textContent = "SUBMIT INSPECTION"; }
+    if (dpUploads.length) {
+      // Button stays tappable during the wait; a second gloved tap used to run every check and prompt twice.
+      if (window._ptWaiting) return;
+      var sb2 = document.getElementById("sendBtn"); window._ptWaiting = true; sb2.disabled = true; sb2.textContent = "UPLOADING PHOTOS...";
+      try { await Promise.race([Promise.allSettled(dpUploads), new Promise(function (r) { setTimeout(r, 20000); })]); }
+      finally { window._ptWaiting = false; sb2.disabled = false; sb2.textContent = "SUBMIT INSPECTION"; }
+    }
     const name = document.getElementById("driverName").value.trim();
     const date = document.getElementById("date").value;
     if (!name) { alert("Please pick your name before saving."); return; }
@@ -1215,8 +1221,12 @@ function flushTrack() {
   if (!q.length) return;
   Promise.all(q.map(sendTrack)).then(function (ok) {
     var now = trackStore("montney_pending") || [];
-    var left = q.filter(function (_, i) { return !ok[i]; });
-    trackStore("montney_pending", left.concat(now.slice(q.length)));
+    // Take out only the records this run sent, matched by content. Another send may have added or removed
+    // records while this one was waiting on a weak signal; slicing by position used to drop those.
+    var sent = q.filter(function (_, i) { return ok[i]; }).map(function (r) { return JSON.stringify(r); });
+    trackStore("montney_pending", now.filter(function (r) {
+      var k = sent.indexOf(JSON.stringify(r)); if (k < 0) return true; sent.splice(k, 1); return false;
+    }));
   });
 }
 

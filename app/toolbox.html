@@ -409,6 +409,11 @@
     if (!date) { alert("Please enter the date before saving."); return; }
     if (date > maxFormDate()) { alert("The date is in the future. Fix the date before sending."); return; }
     if (!document.getElementById("topic").value.trim()) { alert("Please enter the safety topic."); document.getElementById("topic").focus(); return; }
+    // A toolbox talk with nobody on the attendance list is no record at all.
+    const rowsIn = Array.prototype.filter.call(document.querySelectorAll("#crewRows tr"), function (tr) { const i = tr.querySelector("input"); return i && i.value.trim(); });
+    if (!rowsIn.length) { alert("Add at least one name to the attendance list."); document.getElementById("crewRows").scrollIntoView({ block: "center" }); return; }
+    if (!rowsIn.some(function (tr) { const b = tr.querySelector(".present-btn"); return b && b.classList.contains("active"); })
+        && !confirm("Nobody is marked present (\u2713). Send anyway?")) return;
     if (!sigInked) { alert("Please sign in the signature box before sending."); document.getElementById("sigCanvas").scrollIntoView({ block: "center" }); return; }
     const safeName = foreman.replace(/\s+/g, "_");
     document.title = `Toolbox_${safeName}_${date}`;
@@ -963,8 +968,12 @@ function flushTrack() {
   if (!q.length) return;
   Promise.all(q.map(sendTrack)).then(function (ok) {
     var now = trackStore("montney_pending") || [];
-    var left = q.filter(function (_, i) { return !ok[i]; });
-    trackStore("montney_pending", left.concat(now.slice(q.length)));
+    // Take out only the records this run sent, matched by content. Another send may have added or removed
+    // records while this one was waiting on a weak signal; slicing by position used to drop those.
+    var sent = q.filter(function (_, i) { return ok[i]; }).map(function (r) { return JSON.stringify(r); });
+    trackStore("montney_pending", now.filter(function (r) {
+      var k = sent.indexOf(JSON.stringify(r)); if (k < 0) return true; sent.splice(k, 1); return false;
+    }));
   });
 }
 

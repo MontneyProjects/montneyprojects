@@ -1670,10 +1670,12 @@
     if (!S.calMonth) S.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const m = S.calMonth, first = iso(m), last = iso(new Date(m.getFullYear(), m.getMonth() + 1, 0));
     $("calTitle").textContent = m.toLocaleDateString("en-CA", { month:"long", year:m.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
+    const tok = S.calTok = (S.calTok || 0) + 1; // quick taps on < > overlap; only the last one may draw
     const [h, f] = await Promise.all([
       me ? sb.from("hours").select("work_date,hours,shop_hours").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] }),
       me ? sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] })
     ]);
+    if (tok !== S.calTok) return;
     const hrs = {}, sent = {};
     (h.data || []).forEach(r => hrs[r.work_date] = (hrs[r.work_date] || 0) + (Number(r.hours) || 0) + (Number(r.shop_hours) || 0));
     (f.data || []).forEach(r => (sent[r.work_date] = sent[r.work_date] || new Set()).add(r.form));
