@@ -490,7 +490,7 @@
 
 <script>
   // Defaults
-  const today = new Date().toISOString().split("T")[0];
+  const today = (() => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); })();   // phone's local date, not UTC (UTC rolls to tomorrow after ~5 PM here)
   document.getElementById("date").value = today;
   const now = new Date();
   document.getElementById("time").value = now.toTimeString().slice(0,5);
@@ -600,7 +600,7 @@
     var box = input.parentNode.querySelector(".dphotos");
     Array.prototype.forEach.call(input.files || [], function (file) {
       var tile = document.createElement("span"); tile.textContent = "Uploading"; box.appendChild(tile);
-      var d = document.getElementById("date").value || new Date().toISOString().slice(0, 10);
+      var d = document.getElementById("date").value || today;
       var path = "pretrip/" + d + "/" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8) + ".jpg";
       var job = dpShrink(file).then(function (blob) {
         tile.innerHTML = ""; var im = document.createElement("img"); im.src = URL.createObjectURL(blob); tile.appendChild(im);
