@@ -298,7 +298,7 @@
 </div>
 
 <script>
-  const today = new Date().toISOString().split("T")[0];
+  const today = (() => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); })();   // phone's local date, not UTC (UTC rolls to tomorrow after ~5 PM here)
   document.getElementById("date").value = today;
   const now = new Date();
   const h = now.getHours(), m = now.getMinutes().toString().padStart(2,"0");
