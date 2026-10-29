@@ -265,6 +265,7 @@
   .crow .t { flex:1; min-width:0; } .crow b { display:block; font-size:15px; font-weight:800; }
   .pills { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
   .pill { height:24px; padding:0 9px; border-radius:12px; font-size:11px; font-weight:800; display:inline-flex; align-items:center; gap:4px; }
+  button.pill { border:0; font-family:inherit; cursor:pointer; }
   .pill.y { background:rgba(111,191,138,.16); color:var(--ok2); } .pill.n { background:rgba(224,122,95,.16); color:var(--bad2); }
 
 
@@ -1031,9 +1032,10 @@
 
   async function loadToday() {
     const today = iso(new Date());
-    const { data } = await sb.from("safety_forms").select("crew_name,form,created_at").eq("work_date", today);
+    const { data } = await sb.from("safety_forms").select("crew_name,form,created_at,details").eq("work_date", today);
     const done = {}, at = {};
-    (data || []).forEach(r => { (done[r.crew_name] = done[r.crew_name] || new Set()).add(r.form); if (r.created_at) at[r.crew_name + "|" + r.form] = r.created_at; });
+    S.pdfs = {};
+    (data || []).forEach(r => { (done[r.crew_name] = done[r.crew_name] || new Set()).add(r.form); if (r.created_at) at[r.crew_name + "|" + r.form] = r.created_at; if (r.details && r.details.pdf) S.pdfs[r.crew_name + "|" + r.form] = r.details.pdf; });
     const mine = S.crew ? (done[S.crew.crew_name] || new Set()) : new Set();
     S.sentAt = k => at[(S.crew ? S.crew.crew_name : "") + "|" + k];
     if (S.crew) {
@@ -1134,7 +1136,11 @@
       const d = done[c.crew_name] || new Set(), owed = owedFor(c);
       (owed.every(f => d.has(f.form)) ? good : late).push({ c, d, owed });
     });
-    const pills = x => x.owed.map(f => `<span class="pill ${x.d.has(f.form) ? "y" : "n"}">${x.d.has(f.form) ? "✓" : "✗"} ${esc(f.title)}</span>`).join("");
+    const pills = x => x.owed.map(f => {
+      const pdf = x.d.has(f.form) && S.pdfs && S.pdfs[x.c.crew_name + "|" + f.form];
+      return pdf ? `<button type="button" class="pill y" data-pdf="${esc(pdf)}" title="Open the PDF">✓ ${esc(f.title)} · PDF</button>`
+                 : `<span class="pill ${x.d.has(f.form) ? "y" : "n"}">${x.d.has(f.form) ? "✓" : "✗"} ${esc(f.title)}</span>`;
+    }).join("");
     $("crewCard").hidden = false;
     $("crewCounts").innerHTML = `<span style="color:var(--ok2)">${good.length} all in</span><span style="color:var(--bad2)">${late.length} missing</span>`;
     $("cIn").textContent = good.length; $("cOut").textContent = late.length;
@@ -1143,6 +1149,15 @@
     $("lateList").innerHTML = late.map(x => `<div class="crow card"><span class="av">${esc(initials(x.c.display_name))}</span><span class="t"><b>${esc(x.c.display_name)}</b><span class="pills">${pills(x)}</span></span></div>`).join("");
     $("goodList").innerHTML = good.length ? good.map(x => `<div class="crow"><span class="av">${esc(initials(x.c.display_name))}</span><span class="t"><b style="font-weight:700">${esc(x.c.display_name)}</b><span class="pills">${pills(x)}</span></span></div>`).join("") : '<p class="empty">Nobody yet today.</p>';
   }
+
+  // Tap a green pill to open that form's PDF (saved with the record, so it's there even if the email copy isn't).
+  ["lateList", "goodList"].forEach(id => $(id).addEventListener("click", async e => {
+    const b = e.target.closest("[data-pdf]"); if (!b) return;
+    const w = window.open("", "_blank");
+    const { data } = await sb.storage.from("safety-forms").createSignedUrl(b.dataset.pdf, 3600);
+    if (data && data.signedUrl) { if (w) w.location = data.signedUrl; else location.href = data.signedUrl; }
+    else { if (w) w.close(); alert("Couldn't open that PDF. Try again in a minute."); }
+  }));
 
   // ---------- truck defects from Pre-Trips (admin) ----------
   let defShowAll = false; const defUrls = {};
