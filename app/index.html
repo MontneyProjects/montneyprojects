@@ -535,6 +535,9 @@
       <span><span class="label">Crew today</span><span class="n" id="crewCounts"></span></span><span data-i="chev"></span>
     </button>
     <div id="ordersBox"></div>
+    <button class="crewcard" id="tixCard" type="button" data-go="tix" hidden>
+      <span><span class="label">Field tickets</span><span class="n" id="tixCounts">Every truck, every day</span></span><span data-i="chev"></span>
+    </button>
     <button class="crewcard" id="dispCard" type="button" data-go="dispatch" hidden>
       <span><span class="label">Dispatch</span><span class="n" id="dispCounts">Send orders to the crew</span></span><span data-i="chev"></span>
     </button>
@@ -749,6 +752,19 @@
     <div class="group" style="margin-top:10px"><label><span>Show</span><select id="eFilter"><option value="">All cards</option></select></label></div>
     <p class="msg" id="eFilterSum" style="margin-top:8px" hidden></p>
     <div id="eList"><p class="empty">Loading...</p></div>
+  </section>
+
+  <section class="view" id="v-tix" hidden>
+    <div class="pagehead"><div><div class="eyebrow">Admin · Field tickets</div><h1 class="h1">Tickets</h1></div><button class="back" type="button" data-go="home" aria-label="Back" data-i="left"></button></div>
+    <p style="margin:10px 0 0; color:var(--soft); font-size:14px">Straight from the ticketing sheet. Updates about every hour.</p>
+    <div class="group" style="margin-top:14px">
+      <label><span>Show</span><select id="tRange"><option value="today">Today</option><option value="yday">Yesterday</option><option value="pp" selected>This pay period</option><option value="lpp">Last pay period</option><option value="30">Last 30 days</option></select></label>
+      <label><span>Truck</span><select id="tTruck"><option value="">All trucks</option></select></label>
+      <label><span>Client</span><select id="tClient"><option value="">All clients</option></select></label>
+    </div>
+    <div id="tMissing"></div>
+    <div class="fsum" id="tSum"></div>
+    <div id="tList"><p class="empty">Loading...</p></div>
   </section>
 
   <section class="view" id="v-defects" hidden>
@@ -1046,7 +1062,7 @@
     }
     renderTiles(mine); renderSafetyList(mine);
     if (window.MontneyOutbox) MontneyOutbox.count().then(n => { if (n) $("todaySub").textContent = `${n === 1 ? "1 form is" : n + " forms are"} saved on this phone and will send on their own when you get service.`; });
-    if (S.admin) { renderCrew(done); loadDefects(true); $("dispCard").hidden = false; $("fuelCard").hidden = false; loadFuel(true); $("expCard").hidden = false; loadExp(true); }
+    if (S.admin) { renderCrew(done); loadDefects(true); $("dispCard").hidden = false; $("tixCard").hidden = false; loadTix(true); $("fuelCard").hidden = false; loadFuel(true); $("expCard").hidden = false; loadExp(true); }
     loadOrders();
     loadWeek();
   }
@@ -1439,6 +1455,62 @@
     const d = new Date(); d.setDate(d.getDate() - (r === "14" ? 14 : 30)); return [iso(d), null];
   }
   ["fRange", "fTruckF", "fPaidF"].forEach(id => $(id).addEventListener("change", () => loadFuel()));
+  // ---------- admin: field tickets (from the hours table the sheet sync fills) ----------
+  function tixRange() {
+    const d = new Date(), y = d.getFullYear(), m = d.getMonth(), day = d.getDate(), v = $("tRange").value;
+    const last = (yy, mm) => new Date(yy, mm + 1, 0).getDate();
+    if (v === "today") return [iso(d), iso(d)];
+    if (v === "yday") { const x = new Date(y, m, day - 1); return [iso(x), iso(x)]; }
+    if (v === "30") return [iso(new Date(y, m, day - 30)), iso(d)];
+    const cur = day <= 15 ? [new Date(y, m, 1), new Date(y, m, 15)] : [new Date(y, m, 16), new Date(y, m, last(y, m))];
+    if (v === "pp") return cur.map(iso);
+    return (day <= 15 ? [new Date(y, m - 1, 16), new Date(y, m, 0)] : [new Date(y, m, 1), new Date(y, m, 15)]).map(iso);
+  }
+  ["tRange", "tTruck", "tClient"].forEach(id => $(id).addEventListener("change", () => loadTix()));
+  async function loadTix(countOnly) {
+    const today = iso(new Date());
+    const [from, to] = countOnly ? [today, today] : tixRange();
+    const [h, subs, forms] = await Promise.all([
+      sb.from("hours").select("*").gte("work_date", from).lte("work_date", to).order("work_date", { ascending:false }).limit(5000),
+      sb.from("ticket_submits").select("crew_name,truck").eq("work_date", today),
+      sb.from("safety_forms").select("crew_name").eq("work_date", today),
+    ]);
+    const rows = (h.data || []).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0);
+    const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
+    const first = c => String(who(c)).split(/\s+/)[0];
+    // Fitters who worked today (sent a safety form) but have no ticket yet
+    const inToday = new Set(rows.filter(r => r.work_date === today).map(r => r.crew_name));
+    (subs.data || []).forEach(s => inToday.add(s.crew_name));
+    const worked = new Set((forms.data || []).map(f => f.crew_name));
+    const missing = S.roster.filter(c => c.active !== false && c.fitter && worked.has(c.crew_name) && !inToday.has(c.crew_name));
+    if (countOnly) {
+      const trucks = new Set(rows.map(r => r.truck)).size;
+      $("tixCounts").innerHTML = missing.length ? `<span style="color:var(--bad2)">Missing today: ${missing.map(c => esc(first(c.crew_name))).join(", ")}</span>`
+        : trucks ? `<span style="color:var(--gold)">${trucks} truck${trucks === 1 ? "" : "s"} in today</span>` : "Every truck, every day";
+      return;
+    }
+    $("tMissing").innerHTML = missing.length && to >= today ? `<div class="fday"><h3>Not in yet today</h3>${missing.map(c => `<div class="frow"><span class="t"><b>${esc(who(c.crew_name))}</b><small>Worked today, no field ticket</small></span><span class="tag bad">Missing</span></div>`).join("")}</div>` : "";
+    // filter options
+    const keep = (id, vals, all) => { const el = $(id), cur = el.value; el.innerHTML = `<option value="">${all}</option>` + [...new Set(vals)].filter(Boolean).sort().map(v => `<option${v === cur ? " selected" : ""}>${esc(v)}</option>`).join(""); };
+    keep("tTruck", rows.map(r => r.truck), "All trucks"); keep("tClient", rows.map(r => r.client), "All clients");
+    const tv = $("tTruck").value, cv = $("tClient").value;
+    const list = rows.filter(r => (!tv || r.truck === tv) && (!cv || r.client === cv));
+    // one ticket = one truck on one day
+    const tix = {};
+    list.forEach(r => { const k = r.work_date + "|" + (r.truck || "-") + "|" + (r.client || "") + "|" + (r.job || ""); (tix[k] = tix[k] || { date:r.work_date, truck:r.truck, client:r.client, job:r.job, ppl:[] }).ppl.push(r); });
+    const all = Object.values(tix), hrs = t => Math.max(...t.ppl.map(p => (Number(p.hours) || 0) + (Number(p.shop_hours) || 0)));
+    const tot = all.reduce((a, t) => a + hrs(t), 0);
+    $("tSum").innerHTML = all.length ? `<b>${tot.toLocaleString("en-CA", { maximumFractionDigits:1 })} hrs</b><span>${all.length} ticket${all.length === 1 ? "" : "s"} · ${new Set(all.map(t => t.truck)).size} truck${new Set(all.map(t => t.truck)).size === 1 ? "" : "s"}</span>` : "";
+    const days = {}; all.forEach(t => (days[t.date] = days[t.date] || []).push(t));
+    $("tList").innerHTML = Object.keys(days).length ? Object.keys(days).sort().reverse().map(k => {
+      const dl = days[k].sort((a, b) => String(a.truck).localeCompare(String(b.truck))), dh = dl.reduce((a, t) => a + hrs(t), 0);
+      return `<div class="fday"><h3>${esc(new Date(k + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" }))}<b>${dh.toLocaleString("en-CA", { maximumFractionDigits:1 })} hrs</b></h3>
+        ${dl.map(t => { const n = hrs(t), shop = t.ppl.every(p => !(Number(p.hours) > 0)), crew = t.ppl.map(p => `${esc(first(p.crew_name))}${p.role ? " (" + esc(p.role) + ")" : ""}`).join(", ");
+          return `<div class="frow"><span class="noimg" style="font-weight:800;font-size:13px">${esc(t.truck || "-")}</span>
+          <span class="t"><b>${esc(t.client || (shop ? "Shop" : "No client"))}${t.job ? " · Job " + esc(t.job) : ""}</b><small>${crew}</small></span>
+          <span style="text-align:right"><span class="amt">${n.toLocaleString("en-CA", { maximumFractionDigits:1 })}h</span>${shop ? `<br><span class="tag none">Shop</span>` : n < 6 ? `<br><span class="tag warn">Check</span>` : ""}</span></div>`; }).join("")}</div>`;
+    }).join("") : '<p class="empty">No tickets in this range.</p>';
+  }
   async function loadFuel(countOnly) {
     let [from, to] = countOnly ? [iso(new Date(Date.now() - 31 * 864e5)), null] : fuelRange();
     let all = [];
@@ -1728,7 +1800,7 @@
   });
 
   // ---------- navigation ----------
-  const TAB_OF = { home:"home", crew:"home", defects:"home", dispatch:"home", fuel:"home", exp:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
+  const TAB_OF = { home:"home", crew:"home", defects:"home", dispatch:"home", tix:"home", fuel:"home", exp:"home", safety:"safety", ticket:"ticket", hours:"hours", portal:"hours", chat:"chat", thread:"chat" };
   function go(v) {
     S.view = v;
     document.querySelectorAll(".view").forEach(el => el.hidden = el.id !== "v-" + v);
@@ -1741,6 +1813,7 @@
     if (v === "defects" && S.user) loadDefects();
     if (v === "dispatch" && S.user) openDispatch();
     if (v === "fuel" && S.user) openFuel();
+    if (v === "tix" && S.user) loadTix();
     if (v === "exp" && S.user) openExp();
     if (v !== "thread") C.open = null;
     if (v === "ticket" && S.user && !$("tkDone").hidden) { /* keep the done screen until they leave */ }
