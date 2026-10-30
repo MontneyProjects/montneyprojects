@@ -131,9 +131,11 @@
       var sent = [];
       // Part 1 for everything first, so a slow email never holds up a check mark.
       return items.reduce(function (p, it) {
-        return p.then(function () {
-          if (it.dbDone || busy[it.id]) return;
-          return saveToDb(it).then(function (ok) { if (ok) { sent.push(it.id); return put(it); } });
+        // Re-read it first: the list above can be stale if the form page saved this same form to the database
+        // while we were busy with an earlier one, and sending it again would log the form twice.
+        return p.then(function () { return get(it.id); }).then(function (fresh) {
+          if (!fresh || fresh.dbDone || busy[fresh.id]) return;
+          return saveToDb(fresh).then(function (ok) { if (ok) { sent.push(fresh.id); return put(fresh); } });
         });
       }, Promise.resolve()).then(function () {
         // Part 2: the email copy. Already in the database and over a week old with no email? Stop trying.
