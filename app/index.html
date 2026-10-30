@@ -1485,11 +1485,11 @@
     const missing = S.roster.filter(c => c.active !== false && c.fitter && worked.has(c.crew_name) && !inToday.has(c.crew_name));
     if (countOnly) {
       const trucks = new Set(rows.map(r => r.truck)).size;
-      $("tixCounts").innerHTML = missing.length ? `<span style="color:var(--bad2)">Missing today: ${missing.map(c => esc(first(c.crew_name))).join(", ")}</span>`
+      $("tixCounts").innerHTML = missing.length ? `<span style="color:var(--bad2)">No ticket yet: ${missing.map(c => esc(first(c.crew_name))).join(", ")}</span>`
         : trucks ? `<span style="color:var(--gold)">${trucks} truck${trucks === 1 ? "" : "s"} in today</span>` : "Every truck, every day";
       return;
     }
-    $("tMissing").innerHTML = missing.length && to >= today ? `<div class="fday"><h3>Not in yet today</h3>${missing.map(c => `<div class="frow"><span class="t"><b>${esc(who(c.crew_name))}</b><small>Worked today, no field ticket</small></span><span class="tag bad">Missing</span></div>`).join("")}</div>` : "";
+    $("tMissing").innerHTML = missing.length && to >= today ? `<div class="fday"><h3>No ticket yet today</h3>${missing.map(c => `<div class="frow"><span class="t"><b>${esc(who(c.crew_name))}</b><small>Sent a safety form today, no field ticket yet</small></span><span class="tag warn">Not yet</span></div>`).join("")}</div>` : "";
     // filter options
     const keep = (id, vals, all) => { const el = $(id), cur = el.value; el.innerHTML = `<option value="">${all}</option>` + [...new Set(vals)].filter(Boolean).sort().map(v => `<option${v === cur ? " selected" : ""}>${esc(v)}</option>`).join(""); };
     keep("tTruck", rows.map(r => r.truck), "All trucks"); keep("tClient", rows.map(r => r.client), "All clients");
