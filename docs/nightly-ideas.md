@@ -54,3 +54,9 @@ Ideas from the nightly MontneyPro check-up. Each run adds 3 new ones; don't repe
 1. **Emergency card.** One big red button on the home screen opens a full-screen card for today's site: the LSD/legal location, the client's emergency number, the nearest hospital and the site's muster point, with one-tap "Call" buttons. It's saved on the phone when the orders arrive, so it opens in a dead zone when it matters.
 2. **Odometer snap.** At the end of the day, one tap opens the camera; take a picture of the dash. The phone reads the km and fills the mileage on the field ticket for the worker to confirm. No typing, and km billing to the client has a photo behind it.
 3. **Before / After job photos.** Two big buttons on the field ticket: "Before" and "After". Each one is a single photo, time- and GPS-stamped, that rides along with the ticket (queued on the phone with no signal). The client sees the work was done, and the office has proof if a ticket gets questioned.
+
+## 2026-10-31
+
+1. **Service due from the Pre-Trip odometer.** The Pre-Trip already records km. When a unit gets within 1,000 km of its next oil change or service, the driver's home screen shows "Unit 009: service due in 800 km" and the office gets the same note. One tap "Booked" clears it. No new typing: it runs off numbers the crew already enters.
+2. **Client permit photo.** One big "Permit" button on the FLHA. Snap the client's safe work permit or sign-in sheet and it rides along with that day's FLHA PDF (queued on the phone with no signal). The office has the permit on file for audits without chasing paper.
+3. **Glove mode.** One switch in settings makes every button double size, swaps typed fields for big pick lists where it can (client, site, truck, hazards from recent forms), and moves Submit to the bottom where a thumb reaches it. Same app, just easier with winter gloves on.

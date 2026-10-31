@@ -1914,6 +1914,16 @@
     if (!(Number(d.hours) > 0) && !(Number(d.shop) > 0)) { msg("tkMsg", "Enter billable hours, shop hours, or both.", "bad"); return; }
     if (Number(d.hours || 0) + Number(d.shop || 0) > 24) { msg("tkMsg", "Billable plus shop hours can't be more than 24 in one day.", "bad"); return; }
     if (Number(d.hours) > 0 && (!d.client || d.client === "Shop")) { msg("tkMsg", "Pick the client for the billable hours.", "bad"); return; }
+    // Tickets sent in the morning are usually for yesterday, but the date starts on today. A wrong "today" ticket
+    // puts hours on the wrong day and stops tonight's ticket reminder. Ask once if the date was never touched.
+    const now = new Date();
+    if ($("tk-date").dataset.auto === "1" && d.date === iso(now) && now.getHours() < 11) {
+      const y = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1), fmt = x => x.toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" });
+      if (!confirm(`Is this ticket for TODAY, ${fmt(now)}?\n\nOK = yes, today\nCancel = no, it's for yesterday (${fmt(y)})`)) {
+        $("tk-date").value = iso(y); $("tk-date").dataset.auto = "";
+        msg("tkMsg", `Date changed to yesterday, ${fmt(y)}. Check it and tap Submit.`, "ok"); return;
+      }
+    }
     if (!(Number(d.hours) > 0)) { d.hours = 0; if (!d.client) d.client = "Shop"; }
     store("mp_tk_last", { truck:d.truck, client:d.client, job:d.job, supervisor:d.supervisor, location:d.location, fitter:d.fitter, helper:d.helper });
     const btn = $("tkSend"); btn.disabled = true; btn.textContent = "Sending..."; msg("tkMsg", "");
