@@ -1,7 +1,7 @@
-// MontneyPro service worker: makes the app installable and opens fast. Always tries the network first,
+// MontneyPro service worker: makes the app installable and opens fast. Tries the network first (4 s limit),
 // so changes on the site show up right away; falls back to the saved copy when there's no signal.
-const CACHE = "montneypro-v21";
-const SHELL = ["./", "index.html", "sendq.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "logo-cream.png", "truck.jpg"];
+const CACHE = "montneypro-v27";
+const SHELL = ["./", "index.html", "sendq.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "logo-cream.png", "truck.jpg", "flha.html", "pretrip.html", "toolbox.html"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -9,10 +9,16 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== "GET" || u.origin !== location.origin) return;   // never touch Supabase, Google or form posts
-  e.respondWith(fetch(r).then(res => {
+  const net = fetch(r).then(res => {
     if (res.ok && u.pathname.startsWith("/app/")) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)); }
     return res;
-  }).catch(() => caches.match(r).then(m => m || caches.match("index.html"))));
+  });
+  net.catch(() => {}); // the race below handles failures; this just keeps the console quiet
+  const fallback = () => caches.match(r).then(m => m || caches.match("index.html"));
+  // On one bar the network can hang for a minute with no error. After 4 s, use the saved copy if there is one;
+  // the network answer still updates the saved copy for next time. No saved copy: keep waiting on the network.
+  const slow = new Promise(ok => setTimeout(ok, 4000)).then(() => caches.match(r)).then(m => m || net);
+  e.respondWith(Promise.race([net, slow]).catch(fallback));
 });
 
 // Phone pings: chat messages and daily reminders.
