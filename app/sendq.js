@@ -101,12 +101,20 @@
     if (typeof window.logForm === "function") return window.logForm(rec);
     var q; try { q = JSON.parse(localStorage.getItem("montney_pending") || "[]"); } catch (e) { q = []; }
     q.push(rec);
+    try { localStorage.setItem("montney_pending", JSON.stringify(q)); } catch (e) {}
     Promise.all(q.map(function (r) {
       return fetch(TRACK_URL + "safety_forms", { method: "POST", keepalive: true,
         headers: { apikey: TRACK_KEY, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(r) })
-        .then(function (x) { return x.ok || x.status < 500; }).catch(function () { return false; });
+        .then(function (x) { return x.ok || (x.status < 500 && x.status !== 408 && x.status !== 429); }).catch(function () { return false; });
     })).then(function (ok) {
-      try { localStorage.setItem("montney_pending", JSON.stringify(q.filter(function (_, i) { return !ok[i]; }))); } catch (e) {}
+      // Re-read the list and take out only what was sent, so records added meanwhile aren't wiped.
+      try {
+        var sent = q.filter(function (_, i) { return ok[i]; }).map(function (r) { return JSON.stringify(r); });
+        var now = JSON.parse(localStorage.getItem("montney_pending") || "[]");
+        localStorage.setItem("montney_pending", JSON.stringify(now.filter(function (r) {
+          var k = sent.indexOf(JSON.stringify(r)); if (k < 0) return true; sent.splice(k, 1); return false;
+        })));
+      } catch (e) {}
     });
   }
 
@@ -131,9 +139,11 @@
       var sent = [];
       // Part 1 for everything first, so a slow email never holds up a check mark.
       return items.reduce(function (p, it) {
-        return p.then(function () {
-          if (it.dbDone || busy[it.id]) return;
-          return saveToDb(it).then(function (ok) { if (ok) { sent.push(it.id); return put(it); } });
+        // Re-read it first: the list above can be stale if the form page saved this same form to the database
+        // while we were busy with an earlier one, and sending it again would log the form twice.
+        return p.then(function () { return get(it.id); }).then(function (fresh) {
+          if (!fresh || fresh.dbDone || busy[fresh.id]) return;
+          return saveToDb(fresh).then(function (ok) { if (ok) { sent.push(fresh.id); return put(fresh); } });
         });
       }, Promise.resolve()).then(function () {
         // Part 2: the email copy. Already in the database and over a week old with no email? Stop trying.
@@ -182,6 +192,12 @@
     post1: post, // one straight send, used only if the phone can't save the form
 
     count: function () { return all().then(pending).catch(function () { return 0; }); },
+    // What's still waiting on this phone (not in the database yet), so a form page can say so.
+    waiting: function () {
+      return all().then(function (l) {
+        return l.filter(function (it) { return !it.dbDone; }).map(function (it) { return { form: (it.track && it.track.form) || (it.fields && it.fields.Form) || "Form", date: (it.track && it.track.work_date) || "" }; });
+      }).catch(function () { return []; });
+    },
     onChange: function (fn) { listeners.push(fn); }
   };
 
@@ -190,5 +206,7 @@
     addEventListener("online", function () { setTimeout(flush, 3000); });
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") flush(); });
     setInterval(flush, 60000);
+    // Leaving the page mid-send: free the lock so the next page can send straight away instead of saying "no signal".
+    addEventListener("pagehide", function () { if (running) dropLock(); });
   }
 })();

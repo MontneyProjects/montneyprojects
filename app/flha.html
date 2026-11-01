@@ -566,8 +566,11 @@
   .mp-bar a{display:inline-flex;align-items:center;gap:6px;color:#f3c279;text-decoration:none;font-weight:700}
   .mp-bar span{margin-left:auto;font-size:12px;font-weight:800;letter-spacing:.14em;color:#1c110a;background:#f3c279;border-radius:5px;padding:3px 8px}
   body.capturing .mp-bar{display:none !important}
+  .mp-q{margin:10px 14px 0;padding:12px 14px;border-radius:10px;background:#fff4d6;border:2px solid #e0a526;color:#2c1a0e;font:600 15px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif}
+  body.capturing .mp-q{display:none !important}
 </style>
 <div class="mp-bar"><a href="./">&#8249; MontneyPro</a><span>PRO</span></div>
+<div class="mp-q" id="mpQueue" role="status" hidden></div>
 
 
 <!-- HEADER -->
@@ -741,9 +744,22 @@
 
 <script>
   // Set today's date by default
-  const today = new Date().toISOString().split('T')[0];
+  const today = (function(){ const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); })(); // local date, not UTC (evening forms were getting tomorrow's date)
+  // Latest date a form can carry: tomorrow (local). Stops a mis-tapped month/year from crediting a day not worked yet.
+  function maxFormDate() { var d = new Date(); d.setDate(d.getDate() + 1); return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+  document.getElementById("date").max = maxFormDate();
   document.getElementById('date').value = today;
   document.getElementById('confirmDate').value = today;
+
+  // Form left open overnight: move an untouched date to today when the page comes back (pageshow / back to the app).
+  (function(){ var touched = false, el = document.getElementById("date");
+    el.addEventListener("change", function(){ touched = true; });
+    var tmEl = document.getElementById("time"); if (tmEl) tmEl.addEventListener("change", function(){ tmEl.dataset.touched = "1"; });   // a time they typed is left alone
+    function refresh(){ if (touched) return; var d = new Date(), t = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      el.max = maxFormDate(); if (el.value !== t) { el.value = t; var c = document.getElementById("confirmDate"); if (c) c.value = t; var tm = document.getElementById("time"); if (tm && !tm.dataset.touched) { tm.value = d.toTimeString().slice(0,5); if (typeof setAMPM === "function") setAMPM(d.getHours() < 12 ? "AM" : "PM"); } } }
+    addEventListener("pageshow", refresh);
+    document.addEventListener("visibilitychange", function(){ if (document.visibilityState === "visible") refresh(); });
+  })();
 
   // AM/PM toggle
   function setAMPM(val) {
@@ -826,10 +842,14 @@
   let drawing = false;
   let lastX = 0, lastY = 0;
 
+  let lastSigW = 0, sigInked = false;   // sigInked: has anything been drawn in the signature box
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
+    // Only redraw when the width really changes. Setting canvas.width erases it, and iPhone/Android fire
+    // resize when the toolbar or keyboard shows, which was wiping a finished signature.
+    if (Math.round(rect.width) === lastSigW) return;
+    lastSigW = Math.round(rect.width); sigInked = false;
     const dpr = window.devicePixelRatio || 1;
-    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
@@ -858,7 +878,7 @@
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
     ctx.lineTo(p.x, p.y);
-    ctx.stroke();
+    ctx.stroke(); sigInked = true;
     lastX = p.x; lastY = p.y;
   });
   canvas.addEventListener('mouseup', () => drawing = false);
@@ -872,12 +892,12 @@
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
     ctx.lineTo(p.x, p.y);
-    ctx.stroke();
+    ctx.stroke(); sigInked = true;
     lastX = p.x; lastY = p.y;
   }, { passive: false });
   canvas.addEventListener('touchend', () => drawing = false);
 
-  function clearSig() {
+  function clearSig() { sigInked = false;
     const rect = canvas.getBoundingClientRect();
     ctx.clearRect(0, 0, rect.width, rect.height);
   }
@@ -888,6 +908,10 @@
     const date = document.getElementById('date').value;
     if (!name) { alert('Please pick your name before saving.'); return; }
     if (!date)  { alert('Please enter the date before saving.'); return; }
+    if (date > maxFormDate()) { alert('The date is in the future. Fix the date before sending.'); return; }
+    if (!document.getElementById('site').value.trim()) { alert('Please enter the site or location.'); document.getElementById('site').focus(); return; }
+    if (!Array.prototype.some.call(document.querySelectorAll('#hazardRows .hazard-block input[type=text]'), function (i) { return i.value.trim(); })) { alert('List at least one hazard before sending.'); var h = document.querySelector('#hazardRows input[type=text]'); if (h) h.focus(); return; }
+    if (!sigInked) { alert('Please sign in the signature box before sending.'); document.getElementById('sigCanvas').scrollIntoView({ block: 'center' }); return; }
     const safeName = name.replace(/\s+/g, '_');
     document.title = `FLHA_${safeName}_${date}`;
     sendPdf({ title: "Montney Projects Corp \u2013 FLHA", who: document.getElementById("workerName").value.trim(), date: date, extra: { Site: document.getElementById("site").value.trim(), Client: document.getElementById("client").value.trim(), Supervisor: document.getElementById("supervisor").value.trim() }, track: trackInfo("FLHA", "workerName", date) });
@@ -1425,7 +1449,7 @@ function sendTrack(rec) {
     body: JSON.stringify(rec)
   }).then(function (r) {
     if (r.ok) return true;
-    return r.status >= 500 ? false : true; // a rejected record (e.g. a very old date) won't succeed on retry, so drop it
+    return (r.status >= 500 || r.status === 408 || r.status === 429) ? false : true; // timeouts/rate limits retry; a rejected record (e.g. a very old date) won't succeed on retry, so drop it
   }).catch(function () { return false; });
 }
 
@@ -1441,13 +1465,36 @@ function flushTrack() {
   if (!q.length) return;
   Promise.all(q.map(sendTrack)).then(function (ok) {
     var now = trackStore("montney_pending") || [];
-    var left = q.filter(function (_, i) { return !ok[i]; });
-    trackStore("montney_pending", left.concat(now.slice(q.length)));
+    // Take out only the records this run sent, matched by content. Another send may have added or removed
+    // records while this one was waiting on a weak signal; slicing by position used to drop those.
+    var sent = q.filter(function (_, i) { return ok[i]; }).map(function (r) { return JSON.stringify(r); });
+    trackStore("montney_pending", now.filter(function (r) {
+      var k = sent.indexOf(JSON.stringify(r)); if (k < 0) return true; sent.splice(k, 1); return false;
+    }));
   });
 }
 
 window.addEventListener("load", flushTrack);
 window.addEventListener("online", flushTrack);
+
+// Forms already saved on this phone and waiting for signal: say so at the top, so nobody fills the same form in
+// again. (On Oct 29 one Pre-Trip was filled in five times in 40 minutes with no signal; all five went in later.)
+(function () {
+  if (window.self !== window.top || !window.MontneyOutbox || !MontneyOutbox.waiting) return;
+  var box = document.getElementById("mpQueue"); if (!box) return;
+  function nice(d) { if (!d) return ""; var x = new Date(d + "T00:00:00"); return isNaN(x) ? "" : " (" + x.toLocaleDateString("en-CA", { month: "short", day: "numeric" }) + ")"; }
+  function show() {
+    MontneyOutbox.waiting().then(function (l) {
+      if (!l.length) { box.hidden = true; return; }
+      var c = {}; l.forEach(function (w) { var k = w.form + nice(w.date); c[k] = (c[k] || 0) + 1; });
+      box.textContent = "Already saved on this phone, waiting for signal: " + Object.keys(c).map(function (k) { return k + (c[k] > 1 ? " \u00d7" + c[k] : ""); }).join(", ") +
+        ". It sends on its own when you get service. No need to fill it in again.";
+      box.hidden = false;
+    });
+  }
+  show(); MontneyOutbox.onChange(show);
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") show(); });
+})();
 
 loadCrew(document.getElementById("workerName"));
 </script>
