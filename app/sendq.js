@@ -192,6 +192,12 @@
     post1: post, // one straight send, used only if the phone can't save the form
 
     count: function () { return all().then(pending).catch(function () { return 0; }); },
+    // What's still waiting on this phone (not in the database yet), so a form page can say so.
+    waiting: function () {
+      return all().then(function (l) {
+        return l.filter(function (it) { return !it.dbDone; }).map(function (it) { return { form: (it.track && it.track.form) || (it.fields && it.fields.Form) || "Form", date: (it.track && it.track.work_date) || "" }; });
+      }).catch(function () { return []; });
+    },
     onChange: function (fn) { listeners.push(fn); }
   };
 

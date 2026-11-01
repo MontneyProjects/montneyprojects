@@ -197,8 +197,11 @@
   .mp-bar a{display:inline-flex;align-items:center;gap:6px;color:#f3c279;text-decoration:none;font-weight:700}
   .mp-bar span{margin-left:auto;font-size:12px;font-weight:800;letter-spacing:.14em;color:#1c110a;background:#f3c279;border-radius:5px;padding:3px 8px}
   body.capturing .mp-bar{display:none !important}
+  .mp-q{margin:10px 14px 0;padding:12px 14px;border-radius:10px;background:#fff4d6;border:2px solid #e0a526;color:#2c1a0e;font:600 15px/1.35 -apple-system,"Segoe UI",Roboto,sans-serif}
+  body.capturing .mp-q{display:none !important}
 </style>
 <div class="mp-bar"><a href="./">&#8249; MontneyPro</a><span>PRO</span></div>
+<div class="mp-q" id="mpQueue" role="status" hidden></div>
 
 
 <div class="header">
@@ -1232,6 +1235,25 @@ function flushTrack() {
 
 window.addEventListener("load", flushTrack);
 window.addEventListener("online", flushTrack);
+
+// Forms already saved on this phone and waiting for signal: say so at the top, so nobody fills the same form in
+// again. (On Oct 29 one Pre-Trip was filled in five times in 40 minutes with no signal; all five went in later.)
+(function () {
+  if (window.self !== window.top || !window.MontneyOutbox || !MontneyOutbox.waiting) return;
+  var box = document.getElementById("mpQueue"); if (!box) return;
+  function nice(d) { if (!d) return ""; var x = new Date(d + "T00:00:00"); return isNaN(x) ? "" : " (" + x.toLocaleDateString("en-CA", { month: "short", day: "numeric" }) + ")"; }
+  function show() {
+    MontneyOutbox.waiting().then(function (l) {
+      if (!l.length) { box.hidden = true; return; }
+      var c = {}; l.forEach(function (w) { var k = w.form + nice(w.date); c[k] = (c[k] || 0) + 1; });
+      box.textContent = "Already saved on this phone, waiting for signal: " + Object.keys(c).map(function (k) { return k + (c[k] > 1 ? " \u00d7" + c[k] : ""); }).join(", ") +
+        ". It sends on its own when you get service. No need to fill it in again.";
+      box.hidden = false;
+    });
+  }
+  show(); MontneyOutbox.onChange(show);
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") show(); });
+})();
 
 loadCrew(document.getElementById("driverName"));
 </script>
