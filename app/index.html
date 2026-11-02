@@ -1522,7 +1522,11 @@
     const list = rows.filter(r => (!tv || r.truck === tv) && (!cv || r.client === cv));
     // one ticket = one truck on one day
     const tix = {};
-    list.forEach(r => { const k = r.work_date + "|" + (r.truck || "-") + "|" + (r.client || "") + "|" + (r.job || ""); (tix[k] = tix[k] || { date:r.work_date, truck:r.truck, client:r.client, job:r.job, ppl:[] }).ppl.push(r); });
+    // Someone can have two lines on the same ticket (e.g. 2 h + 0.5 h). Add them up per person; before, the ticket only counted the bigger line and listed the name twice.
+    list.forEach(r => { const k = r.work_date + "|" + (r.truck || "-") + "|" + (r.client || "") + "|" + (r.job || ""); const t = (tix[k] = tix[k] || { date:r.work_date, truck:r.truck, client:r.client, job:r.job, ppl:[] });
+      const p = t.ppl.find(x => x.crew_name === r.crew_name);
+      if (p) { p.hours = (Number(p.hours) || 0) + (Number(r.hours) || 0); p.shop_hours = (Number(p.shop_hours) || 0) + (Number(r.shop_hours) || 0); if (!p.role) p.role = r.role; }
+      else t.ppl.push({ ...r }); });
     const all = Object.values(tix), hrs = t => Math.max(...t.ppl.map(p => (Number(p.hours) || 0) + (Number(p.shop_hours) || 0)));
     const tot = all.reduce((a, t) => a + hrs(t), 0);
     $("tSum").innerHTML = all.length ? `<b>${tot.toLocaleString("en-CA", { maximumFractionDigits:1 })} hrs</b><span>${all.length} ticket${all.length === 1 ? "" : "s"} · ${new Set(all.map(t => t.truck)).size} truck${new Set(all.map(t => t.truck)).size === 1 ? "" : "s"}</span>` : "";

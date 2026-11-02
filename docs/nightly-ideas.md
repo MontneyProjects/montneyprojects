@@ -66,3 +66,9 @@ Ideas from the nightly MontneyPro check-up. Each run adds 3 new ones; don't repe
 1. **"Read it out loud" on the Toolbox.** One big speaker button reads the day's topic and key points aloud through the phone, so the fitter doesn't have to read off a small screen in the wind with gloves on. When it's done, one tap "Everyone heard it" ticks every name on the attendance list as present. Works offline (uses the phone's built-in voice).
 2. **Wind arrow on the FLHA.** A big arrow at the top of the FLHA shows which way the wind is blowing and how hard, with "Upwind is that way" for H2S and sour sites. It's pulled when the form opens with signal and saved on the phone for the day, so it still shows in a dead zone (marked with the time it was last updated).
 3. **Truck kit monthly check.** A QR sticker inside each truck's door. Once a month, scan it and tap Good or Needs fixing on four big buttons: fire extinguisher, first-aid kit, spill kit, eye wash. The office sees which trucks are overdue or short, and a "Needs fixing" pings the shop. Taps queue on the phone with no signal.
+
+## 2026-11-02
+
+1. **"Same as yesterday" on the field ticket.** One big button fills in yesterday's truck, client, job, crew and hours. The worker only fixes what changed and taps Send. Most days on the same job, that's zero typing.
+2. **Joint counter.** A big + button (and a small −) on the field ticket for fitters to count joints, welds or connections made today. The count goes on the ticket with the hours, saves on the phone with no signal, and gives the office a simple "how much got done" number per truck.
+3. **"Stuck / broke down" button.** One tap, then pick Stuck, Flat, Won't start or Accident. It sends the truck number and GPS spot to the office and the crews on the same job. With no signal it keeps trying and shows "Not sent yet" in red so the worker knows to call.
