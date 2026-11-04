@@ -475,6 +475,8 @@
   .scrim.on { opacity:1; pointer-events:auto; }
   .sheet { position:fixed; left:0; right:0; bottom:0; z-index:41; padding:10px 20px calc(var(--bot) + 24px); border-radius:24px 24px 0 0; background:var(--bg2); border-top:1px solid var(--line2); transform:translateY(105%); transition:transform .32s cubic-bezier(.2,.8,.2,1); }
   .sheet.on { transform:none; }
+  .sheet.tixedit { max-height:88vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .frow.tap { cursor:pointer; } .frow .ed { font-size:12px; color:var(--gold); font-weight:800; }
   .sheet .grab { width:40px; height:5px; border-radius:3px; background:var(--line2); margin:0 auto 16px; }
   .sheet h3 { margin:0 0 4px; font-size:20px; font-weight:800; } .sheet p { margin:0 0 18px; color:var(--soft); font-size:15px; line-height:1.45; }
   .toast { position:fixed; left:50%; bottom:calc(var(--bot) + 96px); z-index:60; transform:translate(-50%, 20px); opacity:0; padding:12px 18px; border-radius:14px; background:#2a1e15; border:1px solid var(--line2); font-weight:700; font-size:14px; transition:all .25s; pointer-events:none; white-space:nowrap; }
@@ -689,7 +691,10 @@
       <button class="btn" id="dSend">Send orders</button>
       <p class="msg" id="dMsg" aria-live="polite"></p>
     </form>
-    <h2 class="section">Sent</h2>
+    <h2 class="section">Sent orders</h2>
+    <div class="segtabs" style="grid-template-columns:1fr 1fr 1fr"><button type="button" data-dseg="up" aria-pressed="true">Upcoming</button><button type="button" data-dseg="past" aria-pressed="false">Past</button><button type="button" data-dseg="all" aria-pressed="false">All</button></div>
+    <div class="group"><label><span>Search</span><input id="dSearch" type="search" placeholder="Client, site, truck or name"></label></div>
+    <p class="msg" id="dListSum" style="margin-top:8px"></p>
     <div id="dList"><p class="empty">Loading...</p></div>
   </section>
 
@@ -756,7 +761,8 @@
 
   <section class="view" id="v-tix" hidden>
     <div class="pagehead"><div><div class="eyebrow">Admin · Field tickets</div><h1 class="h1">Tickets</h1></div><button class="back" type="button" data-go="home" aria-label="Back" data-i="left"></button></div>
-    <p style="margin:10px 0 0; color:var(--soft); font-size:14px">Straight from the ticketing sheet. Updates about every hour.</p>
+    <p style="margin:10px 0 0; color:var(--soft); font-size:14px" id="tSrc">Straight from the ticketing sheet. Updates about every hour.</p>
+    <div class="notice" id="tSetup" hidden><p><b>Editing isn't switched on yet.</b> Tickets below are view-only until the one-time sheet link is set up.</p></div>
     <div class="group" style="margin-top:14px">
       <label><span>Show</span><select id="tRange"><option value="today">Today</option><option value="yday">Yesterday</option><option value="pp" selected>This pay period</option><option value="lpp">Last pay period</option><option value="30">Last 30 days</option></select></label>
       <label><span>Truck</span><select id="tTruck"><option value="">All trucks</option></select></label>
@@ -824,6 +830,28 @@
   <div style="height:8px"></div>
   <button class="btn ghost" type="button" id="seenClose">Close</button>
 </div>
+<div class="sheet tixedit" id="tixSheet" role="dialog" aria-modal="true" aria-labelledby="teTitle">
+  <div class="grab"></div><h3 id="teTitle">Edit ticket</h3><p id="teSub"></p>
+  <form id="teForm" autocomplete="off">
+    <div class="group">
+      <label><span>Date</span><input type="date" id="te-date" required></label>
+      <label><span>Client</span><input id="te-client" list="clientList"></label>
+      <label><span>Job #</span><input id="te-job"></label>
+      <label><span>Supervisor</span><input id="te-supervisor"></label>
+      <label><span>Location</span><input id="te-location"></label>
+      <label><span>Hours</span><input id="te-hours" inputmode="decimal"></label>
+      <label><span>Shop hours</span><input id="te-shop" inputmode="decimal"></label>
+      <label><span>Fitter</span><input id="te-fitter"></label>
+      <label><span>Helper</span><input id="te-helper"></label>
+      <label><span>SUB/LOA</span><input id="te-sub" placeholder="Yes or blank"></label>
+      <label><span>Invoiced</span><input id="te-invoiced" placeholder="Invoice #"></label>
+    </div>
+    <label class="field" style="margin-top:12px"><span>Work scope</span><textarea id="te-scope" rows="4"></textarea></label>
+    <button class="btn" id="teSave" style="margin-top:14px">Save to the sheet</button>
+    <button class="btn ghost" type="button" id="teCancel" style="margin-top:10px">Cancel</button>
+    <p class="msg" id="teMsg" aria-live="polite"></p>
+  </form>
+</div>
 <div class="sheet" id="pushSheet" role="dialog" aria-modal="true" aria-labelledby="pushTitle">
   <div class="grab"></div>
   <h3 id="pushTitle">Turn on notifications?</h3>
@@ -846,6 +874,7 @@
 (() => {
   const SUPABASE_URL = "https://nwcbvchcdsbwwnnbtyht.supabase.co";
   const SUPABASE_KEY = "sb_publishable_JtICuOehqdwzQOm8v0i-SA_qf21Bh0e";   // public key, safe here
+  const TICKETS_ADMIN_URL = "";   // Admin ticket editor (docs/apps-script/AdminTickets.gs web app URL). Empty = view-only.
   const TICKETS_URL = "https://script.google.com/macros/s/AKfycbznqXX6MkxGNm8hfhau6KIHJDErE9C9ih_mD_n5FeL3r7AAcC5SfjtePYiV9_Vo1-xaRw/exec";
   const DOC_BUCKET = "employee-docs";
   const TRUCKS = ["001", "002", "003", "004", "005", "006", "009", "Skid steer"];
@@ -1293,11 +1322,15 @@
     msg("dMsg", "Updated. They'll get a ping and need to tap Got it again.", "ok"); toast("Orders updated");
   }
   async function loadDispatches() {
-    const since = new Date(); since.setDate(since.getDate() - 14);
-    const { data } = await sb.from("dispatches").select("*, dispatch_recipients(user_id, ack_at)").gte("work_date", iso(since)).order("work_date", { ascending:false }).order("created_at", { ascending:false }).limit(40);
-    const rows = D_.rows = data || [];
-    const upcoming = rows.filter(r => r.work_date >= iso(new Date())).length;
+    const { data, error } = await sb.from("dispatches").select("*, dispatch_recipients(user_id, ack_at)").order("work_date", { ascending:false }).order("created_at", { ascending:false }).limit(500);
+    if (error) { $("dList").innerHTML = '<p class="empty">Couldn\'t load sent orders. Check your signal and try again.</p>'; return; }
+    const allRows = D_.rows = data || [], today = iso(new Date());
+    const upcoming = allRows.filter(r => r.work_date >= today).length;
     $("dispCounts").textContent = upcoming ? upcoming + " upcoming" : "Send orders to the crew";
+    const seg = D_.seg || "up", q = ($("dSearch").value || "").trim().toLowerCase();
+    let rows = seg === "up" ? allRows.filter(r => r.work_date >= today).reverse() : seg === "past" ? allRows.filter(r => r.work_date < today) : allRows;
+    if (q) rows = rows.filter(r => [r.client, r.site, r.truck, r.contact, r.notes, ...(r.dispatch_recipients || []).map(x => nameOf(x.user_id))].join(" ").toLowerCase().includes(q));
+    $("dListSum").textContent = allRows.length ? `${rows.length} of ${allRows.length} sent order${allRows.length === 1 ? "" : "s"}` : "";
     const open = new Set([...$("dList").querySelectorAll(".dsent.open")].map(x => x.dataset.did));
     $("dList").innerHTML = rows.length ? rows.map(r => {
       const rec = (r.dispatch_recipients || []).slice().sort((a, b) => (a.ack_at ? 0 : 1) - (b.ack_at ? 0 : 1) || nameOf(a.user_id).localeCompare(nameOf(b.user_id)));
@@ -1312,8 +1345,12 @@
           <div class="acts"><button type="button" data-dedit="${r.id}">Edit</button><button type="button" class="ddel" data-ddel="${r.id}">Delete</button></div>
         </div>
         ${open.has(r.id) ? "" : `<div class="hint">Tap to view or edit</div>`}</div>`;
-    }).join("") : '<p class="empty">Nothing sent in the last 2 weeks.</p>';
+    }).join("") : `<p class="empty">${q ? "No sent orders match that." : seg === "up" ? "Nothing upcoming. Tap Past to see what you've sent." : "No sent orders yet."}</p>`;
   }
+  document.querySelectorAll("[data-dseg]").forEach(b => b.addEventListener("click", () => {
+    D_.seg = b.dataset.dseg; document.querySelectorAll("[data-dseg]").forEach(x => x.setAttribute("aria-pressed", x === b)); loadDispatches();
+  }));
+  $("dSearch").addEventListener("input", () => { clearTimeout(D_.st); D_.st = setTimeout(loadDispatches, 250); });
   $("dList").addEventListener("click", async e => {
     const ed = e.target.closest("[data-dedit]"); if (ed) { editDispatch(ed.dataset.dedit); return; }
     const b = e.target.closest("[data-ddel]");
@@ -1492,7 +1529,19 @@
     return (day <= 15 ? [new Date(y, m - 1, 16), new Date(y, m, 0)] : [new Date(y, m, 1), new Date(y, m, 15)]).map(iso);
   }
   ["tRange", "tTruck", "tClient"].forEach(id => $(id).addEventListener("change", () => loadTix()));
+  // Admin ticket editor: reads and writes the truck tabs on the ticketing sheet (docs/apps-script/AdminTickets.gs)
+  const TX = { rows:[], byKey:{} };
+  async function tixAdmin(body) {
+    const { data:{ session } } = await sb.auth.getSession();
+    if (!session) throw new Error("signed out");
+    const r = await fetch(TICKETS_ADMIN_URL, { method:"POST", body:JSON.stringify({ ...body, token:session.access_token }) });
+    const j = await r.json();
+    if (j.error) throw new Error(j.error);
+    return j;
+  }
   async function loadTix(countOnly) {
+    if (!countOnly && TICKETS_ADMIN_URL) return loadTixSheet();
+    $("tSetup").hidden = !!TICKETS_ADMIN_URL || countOnly;
     const today = iso(new Date());
     const [from, to] = countOnly ? [today, today] : tixRange();
     const [h, subs, forms] = await Promise.all([
@@ -1540,6 +1589,75 @@
           <span style="text-align:right"><span class="amt">${n.toLocaleString("en-CA", { maximumFractionDigits:1 })}h</span>${shop ? `<br><span class="tag none">Shop</span>` : n < 6 ? `<br><span class="tag warn">Check</span>` : ""}</span></div>`; }).join("")}</div>`;
     }).join("") : '<p class="empty">No tickets in this range.</p>';
   }
+  async function loadTixSheet() {
+    const today = iso(new Date()), [from, to] = tixRange();
+    $("tSetup").hidden = true; $("tSrc").textContent = "Live from the ticketing sheet. Tap a ticket to fix it.";
+    $("tList").innerHTML = '<p class="empty">Loading...</p>'; $("tSum").innerHTML = "";
+    let j;
+    try { j = await tixAdmin({ action:"list", from, to }); }
+    catch (e) { $("tList").innerHTML = `<p class="empty">Couldn't reach the ticketing sheet (${esc(e.message)}). Check your signal and pull down to try again.</p>`; return; }
+    const rows = TX.rows = (j.tickets || []).filter(t => (Number(t.hours) || 0) + (Number(t.shop) || 0) > 0 || t.client || t.scope);
+    TX.byKey = {}; rows.forEach(t => TX.byKey[t.tab + "|" + t.row] = t);
+    // "not in yet today" uses the same check as before
+    const [subs, forms] = await Promise.all([
+      sb.from("ticket_submits").select("crew_name").eq("work_date", today),
+      sb.from("safety_forms").select("crew_name").eq("work_date", today),
+    ]);
+    const first = s => String(s || "").trim().split(/\s+/)[0].toLowerCase();
+    const inToday = new Set((subs.data || []).map(s => s.crew_name));
+    rows.filter(t => t.date === today).forEach(t => { inToday.add(first(t.fitter)); inToday.add(first(t.helper)); });
+    const worked = new Set((forms.data || []).map(f => f.crew_name));
+    const missing = S.roster.filter(c => c.active !== false && c.fitter && worked.has(c.crew_name) && !inToday.has(c.crew_name));
+    $("tMissing").innerHTML = missing.length && to >= today ? `<div class="fday"><h3>Not in yet today</h3>${missing.map(c => `<div class="frow"><span class="t"><b>${esc(c.display_name)}</b><small>Worked today, no field ticket</small></span><span class="tag bad">Missing</span></div>`).join("")}</div>` : "";
+    const keep = (id, vals, all) => { const el = $(id), cur = el.value; el.innerHTML = `<option value="">${all}</option>` + [...new Set(vals)].filter(Boolean).sort().map(v => `<option${v === cur ? " selected" : ""}>${esc(v)}</option>`).join(""); };
+    keep("tTruck", rows.map(t => t.tab), "All trucks"); keep("tClient", rows.map(t => t.client), "All clients");
+    const tv = $("tTruck").value, cv = $("tClient").value;
+    const list = rows.filter(t => (!tv || t.tab === tv) && (!cv || t.client === cv));
+    const hrsOf = t => (Number(t.hours) || 0) + (Number(t.shop) || 0), fmt = n => n.toLocaleString("en-CA", { maximumFractionDigits:1 });
+    const tot = list.reduce((a, t) => a + hrsOf(t), 0);
+    $("tSum").innerHTML = list.length ? `<b>${fmt(tot)} hrs</b><span>${list.length} ticket${list.length === 1 ? "" : "s"} · ${new Set(list.map(t => t.tab)).size} truck${new Set(list.map(t => t.tab)).size === 1 ? "" : "s"}</span>` : "";
+    const days = {}; list.forEach(t => (days[t.date] = days[t.date] || []).push(t));
+    $("tList").innerHTML = Object.keys(days).length ? Object.keys(days).sort().reverse().map(k => {
+      const dl = days[k].sort((a, b) => String(a.tab).localeCompare(String(b.tab)));
+      return `<div class="fday"><h3>${esc(new Date(k + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" }))}<b>${fmt(dl.reduce((a, t) => a + hrsOf(t), 0))} hrs</b></h3>
+        ${dl.map(t => { const n = hrsOf(t), shop = !(Number(t.hours) > 0), crew = [t.fitter, t.helper && !/^no helper$/i.test(t.helper) ? t.helper : ""].filter(Boolean).map(esc).join(" + ");
+          return `<div class="frow tap" data-tk="${esc(t.tab + "|" + t.row)}" role="button" tabindex="0"><span class="noimg" style="font-weight:800;font-size:13px">${esc(t.tab)}</span>
+          <span class="t"><b>${esc(t.client || (shop ? "Shop" : "No client"))}${t.job && !/^n\/?a$/i.test(t.job) ? " · Job " + esc(t.job) : ""}</b><small>${crew || "No crew listed"}${t.invoiced ? " · Invoiced" : ""}</small></span>
+          <span style="text-align:right"><span class="amt">${fmt(n)}h</span><br>${shop ? `<span class="tag none">Shop</span>` : n < 6 ? `<span class="tag warn">Check</span>` : `<span class="ed">Edit</span>`}</span></div>`; }).join("")}</div>`;
+    }).join("") : '<p class="empty">No tickets in this range.</p>';
+  }
+  function openTixEdit(key) {
+    const t = TX.byKey[key]; if (!t) return;
+    TX.edit = t;
+    $("teTitle").textContent = "Truck " + t.tab + " · " + new Date(t.date + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" });
+    $("teSub").textContent = "Changes save straight to the " + t.tab + " tab on the ticketing sheet. Hours and calendars catch up within the hour.";
+    ["date", "client", "job", "supervisor", "location", "hours", "shop", "fitter", "helper", "sub", "invoiced", "scope"].forEach(k => $("te-" + k).value = t[k] == null ? "" : t[k]);
+    msg("teMsg", ""); $("teSave").disabled = false; $("teSave").textContent = "Save to the sheet";
+    openOnly("tixSheet"); $("tixSheet").scrollTop = 0;
+  }
+  $("tList").addEventListener("click", e => { const r = e.target.closest("[data-tk]"); if (r) openTixEdit(r.dataset.tk); });
+  $("tList").addEventListener("keydown", e => { const r = e.target.closest("[data-tk]"); if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openTixEdit(r.dataset.tk); } });
+  $("teCancel").addEventListener("click", closeAll);
+  $("teForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const t = TX.edit; if (!t) return;
+    const v = k => $("te-" + k).value.trim(), num = s => s.replace(",", ".");
+    const set = { date:v("date"), client:v("client"), job:v("job"), supervisor:v("supervisor"), location:v("location"), hours:num(v("hours")), shop:num(v("shop")),
+                  fitter:v("fitter"), helper:v("helper"), sub:v("sub"), invoiced:v("invoiced"), scope:v("scope") };
+    if (!set.date) { msg("teMsg", "Pick a date.", "bad"); return; }
+    for (const k of ["hours", "shop"]) if (set[k] !== "" && !(Number(set[k]) >= 0 && Number(set[k]) <= 24)) { msg("teMsg", (k === "hours" ? "Hours" : "Shop hours") + " must be a number from 0 to 24.", "bad"); return; }
+    const changed = Object.keys(set).filter(k => String(set[k]) !== String(t[k] == null ? "" : t[k]));
+    if (!changed.length) { closeAll(); return; }
+    const btn = $("teSave"); btn.disabled = true; btn.textContent = "Saving..."; msg("teMsg", "");
+    try {
+      const j = await tixAdmin({ action:"update", tab:t.tab, row:t.row, was:{ date:t.date, client:t.client, hours:t.hours, fitter:t.fitter }, set:Object.fromEntries(changed.map(k => [k, set[k]])) });
+      closeAll(); toast("Ticket saved to the sheet");
+      Object.assign(t, j.ticket || set); loadTixSheet();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = "Save to the sheet";
+      msg("teMsg", err.message === "moved" ? "That row changed on the sheet since you opened it. Close this and open the ticket again." : err.message === "not admin" ? "Only the admin account can edit tickets." : "Not saved (" + err.message + "). Check your signal and try again.", "bad");
+    }
+  });
   async function loadFuel(countOnly) {
     let [from, to] = countOnly ? [iso(new Date(Date.now() - 31 * 864e5)), null] : fuelRange();
     let all = [];
@@ -2006,7 +2124,7 @@
 
   // ---------- chat ----------
   const C = { people:[], byId:{}, threads:[], open:null, msgs:[], urls:{}, chan:null, pending:[], sel:null, mode:"dm", rx:{} };
-  const SHEETS = ["newSheet", "infoSheet", "msgSheet", "pushSheet", "seenSheet"];
+  const SHEETS = ["newSheet", "infoSheet", "msgSheet", "pushSheet", "seenSheet", "tixSheet"];
   function openOnly(id) { SHEETS.forEach(x => $(x).classList.toggle("on", x === id)); $("scrim").classList.add("on"); }
   function closeAll() { SHEETS.forEach(x => $(x).classList.remove("on")); if (!$("sheet").classList.contains("on") && !$("bioSheet").classList.contains("on")) $("scrim").classList.remove("on"); }
   const nameOf = id => (C.byId[id] && C.byId[id].name) || "Someone";
