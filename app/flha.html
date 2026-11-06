@@ -1392,9 +1392,18 @@ async function sendPdf(o) {
     say(r.sent ? "Sent to the office. You're done."
                : "No signal right now, so it's saved on your phone. It sends to the office on its own when you get service. You're done.", "ok");
   } catch (e) {
-    // Couldn't even save to the phone (private browsing or storage full): fall back to a straight send.
-    try { await MontneyOutbox.post1({ blob: blob, fname: lastName, subject: o.title + " – " + o.who + " – " + o.date, fields: fields }); if (o.track) logForm(o.track); btn.textContent = "SENT"; say("Sent to the office. You're done.", "ok"); }
-    catch (e2) { btn.disabled = false; btn.style.opacity = ""; btn.textContent = label; say("Could not send. Check your signal and tap submit again.", "bad"); }
+    // Couldn't even save to the phone (private browsing, storage full, older iPhone, an app's built-in browser).
+    // Put it straight into the database first; that's what counts as sent. The email copy is a bonus.
+    var mail = { blob: blob, fname: lastName, subject: o.title + " – " + o.who + " – " + o.date, fields: fields };
+    var inDb = false;
+    try { inDb = o.track && o.track.crew_name ? await MontneyOutbox.direct({ blob: blob, track: o.track }) : false; } catch (e3) { inDb = false; }
+    if (inDb) {
+      btn.textContent = "SENT"; say("Sent to the office. You're done.", "ok");
+      MontneyOutbox.post1(mail).catch(function () {});
+    } else {
+      try { await MontneyOutbox.post1(mail); if (o.track) logForm(o.track); btn.textContent = "SENT"; say("Sent to the office. You're done.", "ok"); }
+      catch (e2) { btn.disabled = false; btn.style.opacity = ""; btn.textContent = label; say("Could not send. Check your signal and tap submit again.", "bad"); }
+    }
   }
   document.getElementById("copyBtn").hidden = false;
   sending = false;

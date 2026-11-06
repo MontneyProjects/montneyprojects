@@ -190,6 +190,9 @@
     },
     flush: flush,
     post1: post, // one straight send, used only if the phone can't save the form
+    // The phone can't keep the form (private browsing, storage full, older iPhone, an app's built-in browser):
+    // put the record and PDF straight into the database anyway. Resolves true once it's in.
+    direct: function (o) { return saveToDb({ id: Date.now(), blob: o.blob, track: o.track || null }); },
 
     count: function () { return all().then(pending).catch(function () { return 0; }); },
     // What's still waiting on this phone (not in the database yet), so a form page can say so.
