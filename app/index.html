@@ -1608,7 +1608,7 @@
     rows.filter(t => t.date === today).forEach(t => { inToday.add(first(t.fitter)); inToday.add(first(t.helper)); });
     const worked = new Set((forms.data || []).map(f => f.crew_name));
     const missing = S.roster.filter(c => c.active !== false && c.fitter && worked.has(c.crew_name) && !inToday.has(c.crew_name));
-    $("tMissing").innerHTML = missing.length && to >= today ? `<div class="fday"><h3>Not in yet today</h3>${missing.map(c => `<div class="frow"><span class="t"><b>${esc(c.display_name)}</b><small>Worked today, no field ticket</small></span><span class="tag bad">Missing</span></div>`).join("")}</div>` : "";
+    $("tMissing").innerHTML = missing.length && to >= today ? `<div class="fday"><h3>No ticket yet today</h3>${missing.map(c => `<div class="frow"><span class="t"><b>${esc(c.display_name)}</b><small>Sent a safety form today, no field ticket yet</small></span><span class="tag warn">Not yet</span></div>`).join("")}</div>` : "";
     const keep = (id, vals, all) => { const el = $(id), cur = el.value; el.innerHTML = `<option value="">${all}</option>` + [...new Set(vals)].filter(Boolean).sort().map(v => `<option${v === cur ? " selected" : ""}>${esc(v)}</option>`).join(""); };
     keep("tTruck", rows.map(t => t.tab), "All trucks"); keep("tClient", rows.map(t => t.client), "All clients");
     const tv = $("tTruck").value, cv = $("tClient").value;
