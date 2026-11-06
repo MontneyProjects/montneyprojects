@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /app/
+Disallow: /portal.html
+Disallow: /platform/
+Disallow: /chores/
+Disallow: /docs/
+
+Sitemap: https://montneyprojects.com/sitemap.xml
