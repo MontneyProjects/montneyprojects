@@ -915,6 +915,9 @@
   const $ = id => document.getElementById(id);
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || "null"); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
+  // The ticket sync can copy the same person onto the same ticket twice (same truck, day, job and hours),
+  // which doubled their calendar. Count an exact repeat once; different lines (e.g. 2 h + 0.5 h) still add up.
+  const uniqH = rows => { const seen = new Set(); return (rows || []).filter(r => { const k = [r.work_date, r.truck, r.job, r.role, r.hours, r.shop_hours].join("|"); if (seen.has(k)) return false; seen.add(k); return true; }); };
   const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const fmtH = n => (Math.round(n * 10) / 10).toString();
   const toast = t => { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2600); };
@@ -1124,11 +1127,11 @@
     const end = new Date(), start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6);
     const [f, h] = await Promise.all([
       sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end)),
-      sb.from("hours").select("work_date,hours,shop_hours").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end))
+      sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end))
     ]);
     const sent = {}, worked = {};
     (f.data || []).forEach(r => (sent[r.work_date] = sent[r.work_date] || new Set()).add(r.form));
-    (h.data || []).forEach(r => { if ((Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0) worked[r.work_date] = true; });
+    uniqH(h.data).forEach(r => { if ((Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0) worked[r.work_date] = true; });
     const owed = owedFor(S.crew).map(x => x.form);
     let html = "";
     for (let i = 0; i < 7; i++) {
@@ -1148,10 +1151,10 @@
     const nowD = new Date(), ms = new Date(nowD.getFullYear(), nowD.getMonth(), 1), me2 = new Date(nowD.getFullYear(), nowD.getMonth() + 1, 0);
     $("boardRange").textContent = ms.toLocaleDateString("en-CA", { month:"long" });
     const [hrs, lb] = await Promise.all([
-      me ? sb.from("hours").select("work_date,hours,shop_hours").eq("crew_name", me).gte("work_date", s).lte("work_date", e) : Promise.resolve({ data:[] }),
+      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", s).lte("work_date", e) : Promise.resolve({ data:[] }),
       sb.rpc("flha_leaderboard", { p_start:iso(ms), p_end:iso(me2) })
     ]);
-    const rowsH = hrs.data || [];
+    const rowsH = uniqH(hrs.data);
     const bill = rowsH.reduce((a, r) => a + (Number(r.hours) || 0), 0), shop = rowsH.reduce((a, r) => a + (Number(r.shop_hours) || 0), 0);
     const days = new Set(rowsH.filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0).map(r => r.work_date)).size;
     $("sHours").textContent = S.crew ? fmtH(bill + shop) : "-";
@@ -1881,12 +1884,12 @@
     $("calTitle").textContent = m.toLocaleDateString("en-CA", { month:"long", year:m.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
     const tok = S.calTok = (S.calTok || 0) + 1; // quick taps on < > overlap; only the last one may draw
     const [h, f] = await Promise.all([
-      me ? sb.from("hours").select("work_date,hours,shop_hours").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] }),
+      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] }),
       me ? sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] })
     ]);
     if (tok !== S.calTok) return;
     const hrs = {}, sent = {};
-    (h.data || []).forEach(r => hrs[r.work_date] = (hrs[r.work_date] || 0) + (Number(r.hours) || 0) + (Number(r.shop_hours) || 0));
+    uniqH(h.data).forEach(r => hrs[r.work_date] = (hrs[r.work_date] || 0) + (Number(r.hours) || 0) + (Number(r.shop_hours) || 0));
     (f.data || []).forEach(r => (sent[r.work_date] = sent[r.work_date] || new Set()).add(r.form));
     const owed = S.crew ? owedFor(S.crew).map(x => x.form) : ["FLHA"];
     const lead = (m.getDay() + 6) % 7, days = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate(), todayK = iso(now);
