@@ -129,7 +129,9 @@
   function dropLock() { try { localStorage.removeItem(LOCK); } catch (e) {} }
 
   var running = null, busy = {};
-  var WEEK = 7 * 864e5;
+  // The email copy is only useful the same day. If it's still stuck on the phone a day later, the form is already
+  // in the portal, so drop the email instead of dumping a pile of old forms into safety@ all at once.
+  var STALE = 864e5;
   function flush() {
     if (isFrame || !window.indexedDB) return Promise.resolve({ sent: [], left: 0 });
     if (running) return running;
@@ -146,12 +148,12 @@
           return saveToDb(fresh).then(function (ok) { if (ok) { sent.push(fresh.id); return put(fresh); } });
         });
       }, Promise.resolve()).then(function () {
-        // Part 2: the email copy. Already in the database and over a week old with no email? Stop trying.
+        // Part 2: the email copy. Already in the database and over a day old with no email? Stop trying.
         return items.reduce(function (p, it) {
           return p.then(function () { return get(it.id); }).then(function (fresh) {
             if (!fresh || busy[fresh.id]) return;               // already sent, or being saved right now
             it = fresh;
-            if (it.dbDone && Date.now() - it.id > WEEK) return del(it.id);
+            if (it.dbDone && Date.now() - it.id > STALE) return del(it.id);
             try { localStorage.setItem(LOCK, String(Date.now())); } catch (e) {}
             return post(it).then(function () {
               if (!it.dbDone) { sent.push(it.id); track(it.track); }
