@@ -72,3 +72,9 @@ Ideas from the nightly MontneyPro check-up. Each run adds 3 new ones; don't repe
 1. **"Same as yesterday" on the field ticket.** One big button fills in yesterday's truck, client, job, crew and hours. The worker only fixes what changed and taps Send. Most days on the same job, that's zero typing.
 2. **Joint counter.** A big + button (and a small −) on the field ticket for fitters to count joints, welds or connections made today. The count goes on the ticket with the hours, saves on the phone with no signal, and gives the office a simple "how much got done" number per truck.
 3. **"Stuck / broke down" button.** One tap, then pick Stuck, Flat, Won't start or Accident. It sends the truck number and GPS spot to the office and the crews on the same job. With no signal it keeps trying and shows "Not sent yet" in red so the worker knows to call.
+
+## 2026-11-07
+
+1. **Spill kit used? One tap.** On the FLHA and Pre-Trip, a big "Used spill kit" button. Tap it, pick Small or Big spill, done. The office gets a ping to restock that truck and the spill is on record for the client with time and GPS. Queues on the phone with no signal.
+2. **H2S / gas alarm log.** If the personal monitor goes off, one giant red "My monitor alarmed" button, then pick H2S, LEL, O2 or CO and "Evacuated" or "False alarm". Time, site and GPS fill in by themselves, the foreman gets pinged, and it shows on that site's next FLHA. No typing.
+3. **Day-end "All good" sign-off.** At the end of the shift one button: "Off site, no injuries, nothing to report", or "Something happened" which opens the incident buttons. One tap closes the day for each worker so the office knows everyone got out OK, and missing taps after 9 pm show as a list for the foreman to call.
