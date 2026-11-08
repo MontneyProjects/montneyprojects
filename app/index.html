@@ -1552,11 +1552,13 @@
     $("tSetup").hidden = !!TICKETS_ADMIN_URL || countOnly;
     const today = iso(new Date());
     const [from, to] = countOnly ? [today, today] : tixRange();
-    const [h, subs, forms] = await Promise.all([
+    const [h, subs, forms, sc] = await Promise.all([
       sb.from("hours").select("*").gte("work_date", from).lte("work_date", to).order("work_date", { ascending:false }).limit(5000),
       sb.from("ticket_submits").select("crew_name,truck").eq("work_date", today),
       sb.from("safety_forms").select("crew_name").eq("work_date", today),
+      countOnly ? Promise.resolve({ data:[] }) : sb.from("ticket_scopes").select("work_date,truck,job,scope,created_at").gte("work_date", from).lte("work_date", to).order("created_at").limit(5000),
     ]);
+    TX.scopes = {}; (sc.data || []).forEach(x => { TX.scopes[x.work_date + "|" + x.truck] = x.scope; TX.scopes[x.work_date + "|" + x.truck + "|" + (x.job || "")] = x.scope; });
     // The sheet sync copies the same person onto the same ticket twice. Count an exact repeat once so a truck's hours aren't doubled.
     const seenH = new Set();
     const rows = (h.data || []).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0).filter(r => {
@@ -1611,6 +1613,7 @@
     const row = (k, v) => `<div class="frow"><span class="t"><small>${k}</small><b>${v}</b></span></div>`;
     $("tvBody").innerHTML = row("Client", esc(t.client || "No client")) + row("Job #", esc(t.job || "-"))
       + row("Truck hours", n.toLocaleString("en-CA", { maximumFractionDigits:2 }) + " h")
+      + row("Scope of work", esc((TX.scopes || {})[t.date + "|" + t.truck + "|" + (t.job || "")] || (TX.scopes || {})[t.date + "|" + t.truck] || "Not entered").replace(/\n/g, "<br>"))
       + row("Crew", t.ppl.map(p => esc(who(p.crew_name)) + (p.role ? " (" + esc(p.role) + ")" : "")).join("<br>"));
     openOnly("tixView"); $("tixView").scrollTop = 0;
   }
@@ -2081,6 +2084,7 @@
       btn.disabled = false; btn.textContent = "Submit field ticket";
       if (j.error === "code") { store("mp_tk_code", ""); tkCode = ""; $("tkForm").hidden = true; $("tkGate").hidden = false; msg("tkGateMsg", "The crew code changed. Enter the new one.", "bad"); return; }
       if (!j.saved) { msg("tkMsg", "Not saved. Try again.", "bad"); return; }
+      if (S.user && d.scope) sb.from("ticket_scopes").insert({ work_date:d.date, truck:d.truck, client:d.client, job:d.job, scope:d.scope }).then(() => {}, () => {});
       if (S.user) sb.functions.invoke("activity", { body:{ mode:"ticket", t:{ date:d.date, truck:d.truck, client:d.client, job:d.job, hours:d.hours, shop:d.shop, fitter:d.fitter } } }).catch(() => {});
       $("tkDoneMsg").textContent = j.ok ? `Added to the ${j.tab || d.truck} tab. Your hours show on your calendar within the hour.` : "Saved, but it couldn't be put on your truck's tab. Tell the office so they can move it.";
       const crewTxt = [d.fitter, d.helper && d.helper !== "No helper" ? d.helper : ""].filter(Boolean).map(shortName).join(" + ");
