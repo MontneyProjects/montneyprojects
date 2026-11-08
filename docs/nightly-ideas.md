@@ -78,3 +78,9 @@ Ideas from the nightly MontneyPro check-up. Each run adds 3 new ones; don't repe
 1. **Spill kit used? One tap.** On the FLHA and Pre-Trip, a big "Used spill kit" button. Tap it, pick Small or Big spill, done. The office gets a ping to restock that truck and the spill is on record for the client with time and GPS. Queues on the phone with no signal.
 2. **H2S / gas alarm log.** If the personal monitor goes off, one giant red "My monitor alarmed" button, then pick H2S, LEL, O2 or CO and "Evacuated" or "False alarm". Time, site and GPS fill in by themselves, the foreman gets pinged, and it shows on that site's next FLHA. No typing.
 3. **Day-end "All good" sign-off.** At the end of the shift one button: "Off site, no injuries, nothing to report", or "Something happened" which opens the incident buttons. One tap closes the day for each worker so the office knows everyone got out OK, and missing taps after 9 pm show as a list for the foreman to call.
+
+## 2026-11-08
+
+1. **Lock on / Lock off board.** A grid of big numbered buttons, one per personal lock. Tap your lock number and "On" when you lock out a valve or breaker, "Off" when you pull it. Before anyone leaves the lease, the foreman's screen shows any lock still on and whose it is. Taps save on the phone with no signal.
+2. **"Stayed out tonight" (LOA) tap.** One button in the evening: "Stayed out tonight" with the town filled in from GPS. It adds the night's LOA / per diem line to that worker's pay period, so nobody has to remember at payday which nights they were in a hotel or camp. Queues with no signal.
+3. **Truck hand-off note.** When a unit changes hands, the outgoing driver holds one big mic button and says what the next guy needs to know ("left rear tire slow leak, welder low on gas"). It shows as a banner the next time anyone opens a Pre-Trip on that unit, with a "Got it" button. Saved with the unit, so it works offline once loaded.
