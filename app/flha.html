@@ -728,6 +728,17 @@
     </div>
   </div>
 
+  <!-- CLIENT REP / CONSULTANT SIGN-OFF -->
+  <div class="sig-section">
+    <div class="section-header"><span class="num" style="background:var(--gold);">✎</span> CLIENT REP / CONSULTANT SIGN-OFF</div>
+    <div class="sig-body">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">If the client rep or consultant is on site, have them print their name and sign:</p>
+      <input id="repName" type="text" placeholder="Client rep / consultant name" autocomplete="off" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid var(--border);border-radius:4px;font-size:16px;margin-bottom:8px;background:#fff;font-family:inherit;">
+      <canvas id="repCanvas" style="border:1.5px solid var(--border);border-radius:4px;width:100%;height:100px;background:var(--cream);display:block;touch-action:none;cursor:crosshair;"></canvas>
+      <div class="sig-controls"><button type="button" class="clear-sig" onclick="clearRepSig()">Clear signature</button></div>
+    </div>
+  </div>
+
   <!-- ACTIONS -->
   <p class="no-pdf" style="text-align:center;font-size:13px;color:var(--muted);margin-bottom:10px;line-height:1.5;">Tap the button below. Your form is sent to the office as a PDF.</p>
   <div id="sendBox">
@@ -918,6 +929,18 @@
   }
 </script>
 
+<script>/* Client rep / consultant sign-off pad (optional) */
+(function(){var c=document.getElementById("repCanvas");if(!c)return;var x=c.getContext("2d"),d=false,lx=0,ly=0,lw=0;
+function rs(){var r=c.getBoundingClientRect();if(!r.width||Math.round(r.width)===lw)return;lw=Math.round(r.width);var p=window.devicePixelRatio||1;c.width=r.width*p;c.height=r.height*p;x.setTransform(p,0,0,p,0,0);x.strokeStyle="#2c1a0e";x.lineWidth=2;x.lineCap="round";x.lineJoin="round";}
+rs();addEventListener("resize",rs);
+function pos(e){var r=c.getBoundingClientRect(),t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};}
+function start(e){if(e.cancelable)e.preventDefault();rs();d=true;var p=pos(e);lx=p.x;ly=p.y;}
+function move(e){if(!d)return;if(e.cancelable)e.preventDefault();var p=pos(e);x.beginPath();x.moveTo(lx,ly);x.lineTo(p.x,p.y);x.stroke();lx=p.x;ly=p.y;}
+function end(){d=false;}
+c.addEventListener("mousedown",start);c.addEventListener("mousemove",move);c.addEventListener("mouseup",end);c.addEventListener("mouseleave",end);
+c.addEventListener("touchstart",start,{passive:false});c.addEventListener("touchmove",move,{passive:false});c.addEventListener("touchend",end);
+window.clearRepSig=function(){var r=c.getBoundingClientRect();x.clearRect(0,0,r.width,r.height);};})();
+</script>
 <script>/*!
  * html2canvas 1.4.1 <https://html2canvas.hertzen.com>
  * Copyright (c) 2022 Niklas von Hertzen <https://hertzen.com>
