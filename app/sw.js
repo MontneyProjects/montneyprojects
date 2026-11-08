@@ -1,6 +1,6 @@
 // MontneyPro service worker: makes the app installable and opens fast. Tries the network first (4 s limit),
 // so changes on the site show up right away; falls back to the saved copy when there's no signal.
-const CACHE = "montneypro-v37";
+const CACHE = "montneypro-v38";
 const SHELL = ["./", "index.html", "sendq.js", "draft.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "logo-cream.png", "truck.jpg", "flha.html", "pretrip.html", "toolbox.html"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
@@ -9,7 +9,9 @@ self.addEventListener("activate", e => {
 self.addEventListener("fetch", e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== "GET" || u.origin !== location.origin) return;   // never touch Supabase, Google or form posts
-  const net = fetch(r).then(res => {
+  // Pages, scripts and the manifest always check the site for a newer copy (the site's own 10 min cache was hiding updates).
+  const fresh = /\.(html|js|webmanifest)$|\/$/.test(u.pathname);
+  const net = fetch(fresh ? new Request(r, { cache:"no-cache" }) : r).then(res => {
     if (res.ok && u.pathname.startsWith("/app/")) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)); }
     return res;
   });
