@@ -1605,12 +1605,13 @@
   function openTixView(i) {
     const t = (TX.view || {})[i]; if (!t) return;
     const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
-    const f = n => (Number(n) || 0).toLocaleString("en-CA", { maximumFractionDigits:2 });
+    const n = Math.max(...t.ppl.map(p => (Number(p.hours) || 0) + (Number(p.shop_hours) || 0)));
     $("tvTitle").textContent = "Truck " + (t.truck || "-") + " · " + new Date(t.date + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric", year:"numeric" });
-    $("tvSub").textContent = "View only. Supervisor, location and work scope are on the ticketing sheet.";
+    $("tvSub").textContent = "";
     const row = (k, v) => `<div class="frow"><span class="t"><small>${k}</small><b>${v}</b></span></div>`;
     $("tvBody").innerHTML = row("Client", esc(t.client || "No client")) + row("Job #", esc(t.job || "-"))
-      + t.ppl.map(p => `<div class="frow"><span class="t"><b>${esc(who(p.crew_name))}</b><small>${esc(p.role || "Crew")}</small></span><span style="text-align:right"><span class="amt">${f(p.hours)}h</span>${Number(p.shop_hours) > 0 ? `<br><small>+ ${f(p.shop_hours)}h shop</small>` : ""}</span></div>`).join("");
+      + row("Truck hours", n.toLocaleString("en-CA", { maximumFractionDigits:2 }) + " h")
+      + row("Crew", t.ppl.map(p => esc(who(p.crew_name)) + (p.role ? " (" + esc(p.role) + ")" : "")).join("<br>"));
     openOnly("tixView"); $("tixView").scrollTop = 0;
   }
   $("tvClose").addEventListener("click", closeAll);
