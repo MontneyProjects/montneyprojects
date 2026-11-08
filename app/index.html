@@ -833,7 +833,22 @@
 <div class="sheet tixedit" id="tixView" role="dialog" aria-modal="true" aria-labelledby="tvTitle">
   <div class="grab"></div><h3 id="tvTitle">Field ticket</h3><p id="tvSub"></p>
   <div id="tvBody"></div>
-  <button class="btn ghost" type="button" id="tvClose" style="margin-top:14px">Close</button>
+  <button class="btn" type="button" id="tvCopy" style="margin-top:14px">Client copy (PDF)</button>
+  <button class="btn ghost" type="button" id="tvClose" style="margin-top:10px">Close</button>
+</div>
+<div class="sheet tixedit" id="ccSheet" role="dialog" aria-modal="true" aria-labelledby="ccTitle">
+  <div class="grab"></div><h3 id="ccTitle">Client copy</h3><p>Fill in what the client gives you, or leave it blank and they stamp and sign the printed copy.</p>
+  <div class="group">
+    <label><span>AFE #</span><input id="cc-afe"></label>
+    <label><span>Cost code</span><input id="cc-code"></label>
+    <label><span>GL / Cost centre</span><input id="cc-gl"></label>
+    <label><span>Client rep</span><input id="cc-rep" placeholder="Name"></label>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px"><span style="font-size:13px;font-weight:700;color:var(--soft)">Client signature</span><button class="link" type="button" id="ccClear">Clear</button></div>
+  <canvas id="ccSig" style="width:100%;height:130px;margin-top:6px;border-radius:12px;background:#f3ebdf;touch-action:none;display:block"></canvas>
+  <button class="btn" type="button" id="ccGo" style="margin-top:14px">Download / send PDF</button>
+  <button class="btn ghost" type="button" id="ccBack" style="margin-top:10px">Back</button>
+  <p class="msg" id="ccMsg" aria-live="polite"></p>
 </div>
 <div class="sheet tixedit" id="tixSheet" role="dialog" aria-modal="true" aria-labelledby="teTitle">
   <div class="grab"></div><h3 id="teTitle">Edit ticket</h3><p id="teSub"></p>
@@ -1615,8 +1630,95 @@
       + row("Truck hours", n.toLocaleString("en-CA", { maximumFractionDigits:2 }) + " h")
       + row("Scope of work", esc((TX.scopes || {})[t.date + "|" + t.truck + "|" + (t.job || "")] || (TX.scopes || {})[t.date + "|" + t.truck] || "Not entered").replace(/\n/g, "<br>"))
       + row("Crew", t.ppl.map(p => esc(who(p.crew_name)) + (p.role ? " (" + esc(p.role) + ")" : "")).join("<br>"));
+    TX.cur = { date:t.date, truck:t.truck || "-", client:t.client || "", job:t.job || "", hours:n,
+      scope:(TX.scopes || {})[t.date + "|" + t.truck + "|" + (t.job || "")] || (TX.scopes || {})[t.date + "|" + t.truck] || "",
+      crew:t.ppl.map(p => who(p.crew_name) + (p.role ? " (" + p.role + ")" : "")) };
     openOnly("tixView"); $("tixView").scrollTop = 0;
   }
+  // ---------- client copy: branded PDF with coding stamp + signature ----------
+  const CC = { ink:false };
+  function ccPad() {
+    const c = $("ccSig"), r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    c.width = r.width * dpr; c.height = r.height * dpr;
+    const x = c.getContext("2d"); x.scale(dpr, dpr); x.lineWidth = 2.2; x.lineCap = x.lineJoin = "round"; x.strokeStyle = "#120b07";
+    CC.ink = false; CC.ctx = x;
+  }
+  (() => {
+    const c = $("ccSig"); let on = false;
+    const pos = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    c.addEventListener("pointerdown", e => { on = true; c.setPointerCapture(e.pointerId); const [a, b] = pos(e); CC.ctx.beginPath(); CC.ctx.moveTo(a, b); });
+    c.addEventListener("pointermove", e => { if (!on) return; const [a, b] = pos(e); CC.ctx.lineTo(a, b); CC.ctx.stroke(); CC.ink = true; });
+    ["pointerup", "pointercancel"].forEach(ev => c.addEventListener(ev, () => on = false));
+  })();
+  $("tvCopy").addEventListener("click", () => { ["afe", "code", "gl", "rep"].forEach(k => $("cc-" + k).value = ""); msg("ccMsg", ""); openOnly("ccSheet"); $("ccSheet").scrollTop = 0; requestAnimationFrame(ccPad); });
+  $("ccClear").addEventListener("click", ccPad);
+  $("ccBack").addEventListener("click", () => openOnly("tixView"));
+  const loadJs = src => new Promise((ok, no) => { const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = () => no(new Error("no signal")); document.head.appendChild(el); });
+  const imgData = src => new Promise((ok, no) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext("2d").drawImage(im, 0, 0); ok({ d:c.toDataURL("image/png"), w:im.naturalWidth, h:im.naturalHeight }); }; im.onerror = no; im.src = src; });
+  $("ccGo").addEventListener("click", async () => {
+    const t = TX.cur; if (!t) return;
+    const btn = $("ccGo"); btn.disabled = true; btn.textContent = "Building PDF..."; msg("ccMsg", "");
+    try {
+      if (!window.jspdf) await loadJs("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+      const { jsPDF } = window.jspdf, pdf = new jsPDF({ unit:"pt", format:"letter" }), W = 612, M = 40;
+      const DARK = [18, 11, 7], GOLD = [227, 184, 115], INK = [40, 32, 26], SOFT = [120, 108, 96], LINE = [214, 204, 190];
+      const dt = new Date(t.date + "T00:00:00"), no = "MPC-" + t.truck + "-" + t.date.replace(/-/g, "");
+      // header band
+      pdf.setFillColor(...DARK); pdf.rect(0, 0, W, 96, "F"); pdf.setFillColor(...GOLD); pdf.rect(0, 96, W, 4, "F");
+      try { const lg = await imgData("logo-cream.png"), lh = 62; pdf.addImage(lg.d, "PNG", M, 17, lh * lg.w / lg.h, lh); } catch (e) {}
+      pdf.setTextColor(...GOLD); pdf.setFont("helvetica", "bold"); pdf.setFontSize(22); pdf.text("FIELD TICKET", W - M, 44, { align:"right" });
+      pdf.setTextColor(243, 235, 223); pdf.setFontSize(10); pdf.setFont("helvetica", "normal"); pdf.text("Ticket # " + no, W - M, 62, { align:"right" });
+      pdf.text(dt.toLocaleDateString("en-CA", { weekday:"long", year:"numeric", month:"long", day:"numeric" }), W - M, 76, { align:"right" });
+      // company line
+      pdf.setTextColor(...SOFT); pdf.setFontSize(8.5);
+      pdf.text("Montney Projects Corp  ·  101-10601 82 Ave, Clairmont, AB T8X 5G9  ·  780-897-7356  ·  general@montneyprojects.com", W / 2, 118, { align:"center" });
+      // detail grid
+      let y = 140;
+      const cell = (x, w, label, val) => { pdf.setDrawColor(...LINE); pdf.setLineWidth(.8); pdf.rect(x, y, w, 44);
+        pdf.setTextColor(...SOFT); pdf.setFontSize(7.5); pdf.setFont("helvetica", "bold"); pdf.text(label.toUpperCase(), x + 8, y + 14);
+        pdf.setTextColor(...INK); pdf.setFontSize(12); pdf.text(pdf.splitTextToSize(String(val || "-"), w - 16)[0], x + 8, y + 32); };
+      const cw = (W - 2 * M) / 4;
+      cell(M, cw * 2, "Client", t.client); cell(M + cw * 2, cw, "Job #", t.job); cell(M + cw * 3, cw, "Truck", "Unit " + t.truck); y += 44;
+      cell(M, cw * 2, "Date", dt.toLocaleDateString("en-CA", { year:"numeric", month:"short", day:"numeric" })); cell(M + cw * 2, cw * 2, "Truck hours", t.hours.toLocaleString("en-CA", { maximumFractionDigits:2 }) + " hrs"); y += 44;
+      // crew
+      y += 20; pdf.setTextColor(...DARK); pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.text("CREW", M, y);
+      pdf.setFillColor(...GOLD); pdf.rect(M, y + 4, 28, 2, "F"); y += 20;
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(11); pdf.setTextColor(...INK); pdf.text(t.crew.join("     ") || "-", M, y);
+      // scope
+      y += 30; pdf.setTextColor(...DARK); pdf.setFont("helvetica", "bold"); pdf.setFontSize(10); pdf.text("SCOPE OF WORK", M, y);
+      pdf.setFillColor(...GOLD); pdf.rect(M, y + 4, 28, 2, "F"); y += 12;
+      const lines = pdf.splitTextToSize(t.scope || "", W - 2 * M - 20).slice(0, 18), sh = Math.max(90, lines.length * 15 + 24);
+      pdf.setDrawColor(...LINE); pdf.rect(M, y, W - 2 * M, sh); pdf.setFont("helvetica", "normal"); pdf.setFontSize(11); pdf.setTextColor(...INK);
+      pdf.text(lines, M + 10, y + 20, { lineHeightFactor:1.35 }); y += sh + 26;
+      // coding stamp + signature
+      const bw = (W - 2 * M - 16) / 2, bh = 150;
+      pdf.setTextColor(...DARK); pdf.setFont("helvetica", "bold"); pdf.setFontSize(10);
+      pdf.text("CLIENT CODING", M, y); pdf.text("CLIENT APPROVAL", M + bw + 16, y); y += 10;
+      pdf.setDrawColor(...GOLD); pdf.setLineWidth(1.4); pdf.setLineDashPattern([4, 3], 0); pdf.rect(M, y, bw, bh); pdf.setLineDashPattern([], 0);
+      const v = k => $("cc-" + k).value.trim();
+      [["AFE #", v("afe")], ["Cost code", v("code")], ["GL / Cost centre", v("gl")]].forEach(([l, val], i) => {
+        const ly = y + 30 + i * 40; pdf.setTextColor(...SOFT); pdf.setFont("helvetica", "bold"); pdf.setFontSize(8); pdf.text(l.toUpperCase(), M + 10, ly - 12);
+        pdf.setTextColor(...INK); pdf.setFont("helvetica", "normal"); pdf.setFontSize(11); if (val) pdf.text(val, M + 10, ly + 4);
+        pdf.setDrawColor(...LINE); pdf.setLineWidth(.8); pdf.line(M + 10, ly + 8, M + bw - 10, ly + 8); });
+      const sx = M + bw + 16; pdf.setDrawColor(...LINE); pdf.setLineWidth(.8); pdf.rect(sx, y, bw, bh);
+      if (CC.ink) { const c = $("ccSig"), ih = Math.min(70, (bw - 20) * c.height / c.width), iw = ih * c.width / c.height; pdf.addImage(c.toDataURL("image/png"), "PNG", sx + 10, y + 80 - ih, iw, ih); }
+      pdf.line(sx + 10, y + 86, sx + bw - 10, y + 86);
+      pdf.setTextColor(...SOFT); pdf.setFontSize(8); pdf.setFont("helvetica", "bold"); pdf.text("SIGNATURE", sx + 10, y + 98);
+      pdf.setTextColor(...INK); pdf.setFont("helvetica", "normal"); pdf.setFontSize(11); if (v("rep")) pdf.text(v("rep"), sx + 10, y + 122);
+      pdf.line(sx + 10, y + 126, sx + bw - 70, y + 126); pdf.line(sx + bw - 60, y + 126, sx + bw - 10, y + 126);
+      pdf.setTextColor(...SOFT); pdf.setFontSize(8); pdf.setFont("helvetica", "bold"); pdf.text("PRINT NAME", sx + 10, y + 138); pdf.text("DATE", sx + bw - 60, y + 138);
+      if (CC.ink) { pdf.setTextColor(...INK); pdf.setFont("helvetica", "normal"); pdf.setFontSize(10); pdf.text(new Date().toLocaleDateString("en-CA"), sx + bw - 60, y + 122); }
+      // footer
+      pdf.setFillColor(...DARK); pdf.rect(0, 762, W, 30, "F"); pdf.setTextColor(...GOLD); pdf.setFontSize(8.5); pdf.setFont("helvetica", "bold");
+      pdf.text("MONTNEY PROJECTS CORP", M, 781); pdf.setTextColor(243, 235, 223); pdf.setFont("helvetica", "normal"); pdf.text("montneyprojects.com", W - M, 781, { align:"right" });
+      const name = "Montney Field Ticket " + no + ".pdf", blob = pdf.output("blob"), file = new File([blob], name, { type:"application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files:[file] })) {
+        try { await navigator.share({ files:[file], title:name }); } catch (e) { if (e.name !== "AbortError") throw e; }
+      } else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+      toast("Field ticket PDF ready");
+    } catch (err) { msg("ccMsg", "Couldn't build the PDF (" + err.message + "). Check your signal and try again.", "bad"); }
+    btn.disabled = false; btn.textContent = "Download / send PDF";
+  });
   $("tvClose").addEventListener("click", closeAll);
   $("tList").addEventListener("click", e => { const r = e.target.closest("[data-vk]"); if (r) openTixView(r.dataset.vk); });
   $("tList").addEventListener("keydown", e => { const r = e.target.closest("[data-vk]"); if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openTixView(r.dataset.vk); } });
@@ -2156,7 +2258,7 @@
 
   // ---------- chat ----------
   const C = { people:[], byId:{}, threads:[], open:null, msgs:[], urls:{}, chan:null, pending:[], sel:null, mode:"dm", rx:{} };
-  const SHEETS = ["newSheet", "infoSheet", "msgSheet", "pushSheet", "seenSheet", "tixSheet", "tixView"];
+  const SHEETS = ["newSheet", "infoSheet", "msgSheet", "pushSheet", "seenSheet", "tixSheet", "tixView", "ccSheet"];
   function openOnly(id) { SHEETS.forEach(x => $(x).classList.toggle("on", x === id)); $("scrim").classList.add("on"); }
   function closeAll() { SHEETS.forEach(x => $(x).classList.remove("on")); if (!$("sheet").classList.contains("on") && !$("bioSheet").classList.contains("on")) $("scrim").classList.remove("on"); }
   const nameOf = id => (C.byId[id] && C.byId[id].name) || "Someone";
