@@ -833,7 +833,8 @@
 <div class="sheet tixedit" id="tixView" role="dialog" aria-modal="true" aria-labelledby="tvTitle">
   <div class="grab"></div><h3 id="tvTitle">Field ticket</h3><p id="tvSub"></p>
   <div id="tvBody"></div>
-  <button class="btn" type="button" id="tvCopy" style="margin-top:14px">Client copy (PDF)</button>
+  <label style="display:flex;align-items:center;gap:10px;margin-top:16px;font-size:14px;font-weight:700;color:var(--soft)"><input type="checkbox" id="tvAdd" style="width:20px;height:20px;accent-color:var(--gold)">Add client coding / signature</label>
+  <button class="btn" type="button" id="tvCopy" style="margin-top:12px">Download PDF</button>
   <button class="btn ghost" type="button" id="tvClose" style="margin-top:10px">Close</button>
 </div>
 <div class="sheet tixedit" id="ccSheet" role="dialog" aria-modal="true" aria-labelledby="ccTitle">
@@ -1650,14 +1651,19 @@
     c.addEventListener("pointermove", e => { if (!on) return; const [a, b] = pos(e); CC.ctx.lineTo(a, b); CC.ctx.stroke(); CC.ink = true; });
     ["pointerup", "pointercancel"].forEach(ev => c.addEventListener(ev, () => on = false));
   })();
-  $("tvCopy").addEventListener("click", () => { ["afe", "code", "gl", "rep"].forEach(k => $("cc-" + k).value = ""); msg("ccMsg", ""); openOnly("ccSheet"); $("ccSheet").scrollTop = 0; requestAnimationFrame(ccPad); });
+  $("tvCopy").addEventListener("click", () => {
+    ["afe", "code", "gl", "rep"].forEach(k => $("cc-" + k).value = ""); msg("ccMsg", ""); CC.ink = false;
+    if ($("tvAdd").checked) { openOnly("ccSheet"); $("ccSheet").scrollTop = 0; requestAnimationFrame(ccPad); }
+    else ccBuild($("tvCopy"), "Download PDF");
+  });
   $("ccClear").addEventListener("click", ccPad);
   $("ccBack").addEventListener("click", () => openOnly("tixView"));
   const loadJs = src => new Promise((ok, no) => { const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = () => no(new Error("no signal")); document.head.appendChild(el); });
   const imgData = src => new Promise((ok, no) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext("2d").drawImage(im, 0, 0); ok({ d:c.toDataURL("image/png"), w:im.naturalWidth, h:im.naturalHeight }); }; im.onerror = no; im.src = src; });
-  $("ccGo").addEventListener("click", async () => {
+  $("ccGo").addEventListener("click", () => ccBuild($("ccGo"), "Download / send PDF"));
+  async function ccBuild(btn, label) {
     const t = TX.cur; if (!t) return;
-    const btn = $("ccGo"); btn.disabled = true; btn.textContent = "Building PDF..."; msg("ccMsg", "");
+    btn.disabled = true; btn.textContent = "Building PDF..."; msg("ccMsg", "");
     try {
       if (!window.jspdf) await loadJs("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
       const { jsPDF } = window.jspdf, pdf = new jsPDF({ unit:"pt", format:"letter" }), W = 612, M = 40;
@@ -1716,9 +1722,9 @@
         try { await navigator.share({ files:[file], title:name }); } catch (e) { if (e.name !== "AbortError") throw e; }
       } else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
       toast("Field ticket PDF ready");
-    } catch (err) { msg("ccMsg", "Couldn't build the PDF (" + err.message + "). Check your signal and try again.", "bad"); }
-    btn.disabled = false; btn.textContent = "Download / send PDF";
-  });
+    } catch (err) { const m = "Couldn't build the PDF (" + err.message + "). Check your signal and try again."; msg("ccMsg", m, "bad"); toast(m); }
+    btn.disabled = false; btn.textContent = label;
+  }
   $("tvClose").addEventListener("click", closeAll);
   $("tList").addEventListener("click", e => { const r = e.target.closest("[data-vk]"); if (r) openTixView(r.dataset.vk); });
   $("tList").addEventListener("keydown", e => { const r = e.target.closest("[data-vk]"); if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openTixView(r.dataset.vk); } });
