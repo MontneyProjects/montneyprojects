@@ -916,8 +916,8 @@
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || "null"); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
   // The ticket sync can copy the same person onto the same ticket twice (same truck, day, job and hours),
-  // which doubled their calendar. Count an exact repeat once; different lines (e.g. 2 h + 0.5 h) still add up.
-  const uniqH = rows => { const seen = new Set(); return (rows || []).filter(r => { const k = [r.work_date, r.truck, r.job, r.role, r.hours, r.shop_hours].join("|"); if (seen.has(k)) return false; seen.add(k); return true; }); };
+  // which doubled their calendar and the admin ticket totals. Count an exact repeat once; different lines (e.g. 2 h + 0.5 h) still add up.
+  const uniqH = rows => { const seen = new Set(); return (rows || []).filter(r => { const k = [r.crew_name, r.work_date, r.truck, r.client, r.job, r.role, r.hours, r.shop_hours].join("|"); if (seen.has(k)) return false; seen.add(k); return true; }); };
   const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const fmtH = n => (Math.round(n * 10) / 10).toString();
   const toast = t => { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2600); };
@@ -1127,7 +1127,7 @@
     const end = new Date(), start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6);
     const [f, h] = await Promise.all([
       sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end)),
-      sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end))
+      sb.from("hours").select("work_date,hours,shop_hours,truck,client,job,role").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end))
     ]);
     const sent = {}, worked = {};
     (f.data || []).forEach(r => (sent[r.work_date] = sent[r.work_date] || new Set()).add(r.form));
@@ -1151,7 +1151,7 @@
     const nowD = new Date(), ms = new Date(nowD.getFullYear(), nowD.getMonth(), 1), me2 = new Date(nowD.getFullYear(), nowD.getMonth() + 1, 0);
     $("boardRange").textContent = ms.toLocaleDateString("en-CA", { month:"long" });
     const [hrs, lb] = await Promise.all([
-      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", s).lte("work_date", e) : Promise.resolve({ data:[] }),
+      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,client,job,role").eq("crew_name", me).gte("work_date", s).lte("work_date", e) : Promise.resolve({ data:[] }),
       sb.rpc("flha_leaderboard", { p_start:iso(ms), p_end:iso(me2) })
     ]);
     const rowsH = uniqH(hrs.data);
@@ -1552,7 +1552,7 @@
       sb.from("ticket_submits").select("crew_name,truck").eq("work_date", today),
       sb.from("safety_forms").select("crew_name").eq("work_date", today),
     ]);
-    const rows = (h.data || []).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0);
+    const rows = uniqH(h.data).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0);   // same double-copy guard as the calendar
     const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
     const first = c => String(who(c)).split(/\s+/)[0];
     // Fitters who worked today (sent a safety form) but have no ticket yet
@@ -1884,7 +1884,7 @@
     $("calTitle").textContent = m.toLocaleDateString("en-CA", { month:"long", year:m.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
     const tok = S.calTok = (S.calTok || 0) + 1; // quick taps on < > overlap; only the last one may draw
     const [h, f] = await Promise.all([
-      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] }),
+      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,client,job,role").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] }),
       me ? sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] })
     ]);
     if (tok !== S.calTok) return;
