@@ -1557,7 +1557,11 @@
       sb.from("ticket_submits").select("crew_name,truck").eq("work_date", today),
       sb.from("safety_forms").select("crew_name").eq("work_date", today),
     ]);
-    const rows = (h.data || []).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0);
+    // The sheet sync copies the same person onto the same ticket twice. Count an exact repeat once so a truck's hours aren't doubled.
+    const seenH = new Set();
+    const rows = (h.data || []).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0).filter(r => {
+      const k = [r.work_date, r.truck, r.client, r.job, r.crew_name, r.role, r.hours, r.shop_hours].join("|");
+      if (seenH.has(k)) return false; seenH.add(k); return true; });
     const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
     const first = c => String(who(c)).split(/\s+/)[0];
     // Fitters who worked today (sent a safety form) but have no ticket yet
