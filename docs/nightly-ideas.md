@@ -73,6 +73,12 @@ Ideas from the nightly MontneyPro check-up. Each run adds 3 new ones; don't repe
 2. **Joint counter.** A big + button (and a small −) on the field ticket for fitters to count joints, welds or connections made today. The count goes on the ticket with the hours, saves on the phone with no signal, and gives the office a simple "how much got done" number per truck.
 3. **"Stuck / broke down" button.** One tap, then pick Stuck, Flat, Won't start or Accident. It sends the truck number and GPS spot to the office and the crews on the same job. With no signal it keeps trying and shows "Not sent yet" in red so the worker knows to call.
 
+## 2026-11-06
+
+1. **Spill quick-report with volume buttons.** One tap "Spill", then pick what (oil, glycol, produced water, fuel) and how much from big buttons (under 1 L, 1–20 L, 20–200 L, over 200 L). GPS and time are added, it queues with no signal, and anything at or over a reportable amount turns red with the regulator's phone number on a one-tap Call button.
+2. **Shift-change handover card.** At the end of a shift, the outgoing worker taps through three big yes/no questions (anything left open or isolated? any LOTO still on? anything the next crew must know?) and can hold a mic button for a short voice note. The incoming crew on that site or truck sees it at the top of their home screen and taps "Got it".
+3. **Night-before charge reminder.** On nights with orders out for tomorrow, the app pings at 8 pm: "Charge your gas monitor, radio and phone." Three big check buttons; a missed one shows again on the morning FLHA. No typing, works on the phone with no signal once the orders are saved.
+
 ## 2026-11-07
 
 1. **Spill kit used? One tap.** On the FLHA and Pre-Trip, a big "Used spill kit" button. Tap it, pick Small or Big spill, done. The office gets a ping to restock that truck and the spill is on record for the client with time and GPS. Queues on the phone with no signal.
