@@ -830,6 +830,27 @@
   <div style="height:8px"></div>
   <button class="btn ghost" type="button" id="seenClose">Close</button>
 </div>
+<div class="sheet tixedit" id="tixView" role="dialog" aria-modal="true" aria-labelledby="tvTitle">
+  <div class="grab"></div><h3 id="tvTitle">Field ticket</h3><p id="tvSub"></p>
+  <div id="tvBody"></div>
+  <label style="display:flex;align-items:center;gap:10px;margin-top:16px;font-size:14px;font-weight:700;color:var(--soft)"><input type="checkbox" id="tvAdd" style="width:20px;height:20px;accent-color:var(--gold)">Add client coding / signature</label>
+  <button class="btn" type="button" id="tvCopy" style="margin-top:12px">Download PDF</button>
+  <button class="btn ghost" type="button" id="tvClose" style="margin-top:10px">Close</button>
+</div>
+<div class="sheet tixedit" id="ccSheet" role="dialog" aria-modal="true" aria-labelledby="ccTitle">
+  <div class="grab"></div><h3 id="ccTitle">Client copy</h3><p>Fill in what the client gives you, or leave it blank and they stamp and sign the printed copy.</p>
+  <div class="group">
+    <label><span>AFE #</span><input id="cc-afe"></label>
+    <label><span>Cost code</span><input id="cc-code"></label>
+    <label><span>GL / Cost centre</span><input id="cc-gl"></label>
+    <label><span>Client rep</span><input id="cc-rep" placeholder="Name"></label>
+  </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px"><span style="font-size:13px;font-weight:700;color:var(--soft)">Client signature</span><button class="link" type="button" id="ccClear">Clear</button></div>
+  <canvas id="ccSig" style="width:100%;height:130px;margin-top:6px;border-radius:12px;background:#f3ebdf;touch-action:none;display:block"></canvas>
+  <button class="btn" type="button" id="ccGo" style="margin-top:14px">Download / send PDF</button>
+  <button class="btn ghost" type="button" id="ccBack" style="margin-top:10px">Back</button>
+  <p class="msg" id="ccMsg" aria-live="polite"></p>
+</div>
 <div class="sheet tixedit" id="tixSheet" role="dialog" aria-modal="true" aria-labelledby="teTitle">
   <div class="grab"></div><h3 id="teTitle">Edit ticket</h3><p id="teSub"></p>
   <form id="teForm" autocomplete="off">
@@ -1547,11 +1568,13 @@
     $("tSetup").hidden = !!TICKETS_ADMIN_URL || countOnly;
     const today = iso(new Date());
     const [from, to] = countOnly ? [today, today] : tixRange();
-    const [h, subs, forms] = await Promise.all([
+    const [h, subs, forms, sc] = await Promise.all([
       sb.from("hours").select("*").gte("work_date", from).lte("work_date", to).order("work_date", { ascending:false }).limit(5000),
       sb.from("ticket_submits").select("crew_name,truck").eq("work_date", today),
       sb.from("safety_forms").select("crew_name").eq("work_date", today),
+      countOnly ? Promise.resolve({ data:[] }) : sb.from("ticket_scopes").select("work_date,truck,job,scope,created_at").gte("work_date", from).lte("work_date", to).order("created_at").limit(5000),
     ]);
+    TX.scopes = {}; (sc.data || []).forEach(x => { TX.scopes[x.work_date + "|" + x.truck] = x.scope; TX.scopes[x.work_date + "|" + x.truck + "|" + (x.job || "")] = x.scope; });
     const rows = uniqH(h.data).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0);   // same double-copy guard as the calendar
     const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
     const first = c => String(who(c)).split(/\s+/)[0];
@@ -1579,7 +1602,8 @@
       const p = t.ppl.find(x => x.crew_name === r.crew_name);
       if (p) { p.hours = (Number(p.hours) || 0) + (Number(r.hours) || 0); p.shop_hours = (Number(p.shop_hours) || 0) + (Number(r.shop_hours) || 0); if (!p.role) p.role = r.role; }
       else t.ppl.push({ ...r }); });
-    const all = Object.values(tix), hrs = t => Math.max(...t.ppl.map(p => (Number(p.hours) || 0) + (Number(p.shop_hours) || 0)));
+    const all = Object.values(tix); TX.view = {}; all.forEach((t, i) => TX.view[i] = t); all.forEach((t, i) => t.vi = i);
+    const hrs = t => Math.max(...t.ppl.map(p => (Number(p.hours) || 0) + (Number(p.shop_hours) || 0)));
     const tot = all.reduce((a, t) => a + hrs(t), 0);
     $("tSum").innerHTML = all.length ? `<b>${tot.toLocaleString("en-CA", { maximumFractionDigits:1 })} hrs</b><span>${all.length} ticket${all.length === 1 ? "" : "s"} · ${new Set(all.map(t => t.truck)).size} truck${new Set(all.map(t => t.truck)).size === 1 ? "" : "s"}</span>` : "";
     const days = {}; all.forEach(t => (days[t.date] = days[t.date] || []).push(t));
@@ -1587,11 +1611,109 @@
       const dl = days[k].sort((a, b) => String(a.truck).localeCompare(String(b.truck))), dh = dl.reduce((a, t) => a + hrs(t), 0);
       return `<div class="fday"><h3>${esc(new Date(k + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric" }))}<b>${dh.toLocaleString("en-CA", { maximumFractionDigits:1 })} hrs</b></h3>
         ${dl.map(t => { const n = hrs(t), shop = t.ppl.every(p => !(Number(p.hours) > 0)), crew = t.ppl.map(p => `${esc(first(p.crew_name))}${p.role ? " (" + esc(p.role) + ")" : ""}`).join(", ");
-          return `<div class="frow"><span class="noimg" style="font-weight:800;font-size:13px">${esc(t.truck || "-")}</span>
+          return `<div class="frow tap" data-vk="${t.vi}" role="button" tabindex="0"><span class="noimg" style="font-weight:800;font-size:13px">${esc(t.truck || "-")}</span>
           <span class="t"><b>${esc(t.client || (shop ? "Shop" : "No client"))}${t.job ? " · Job " + esc(t.job) : ""}</b><small>${crew}</small></span>
-          <span style="text-align:right"><span class="amt">${n.toLocaleString("en-CA", { maximumFractionDigits:1 })}h</span>${shop ? `<br><span class="tag none">Shop</span>` : n < 6 ? `<br><span class="tag warn">Check</span>` : ""}</span></div>`; }).join("")}</div>`;
+          <span style="text-align:right"><span class="amt">${n.toLocaleString("en-CA", { maximumFractionDigits:1 })}h</span>${shop ? `<br><span class="tag none">Shop</span>` : n < 6 ? `<br><span class="tag warn">Check</span>` : `<br><span class="ed">View</span>`}</span></div>`; }).join("")}</div>`;
     }).join("") : '<p class="empty">No tickets in this range.</p>';
   }
+  function openTixView(i) {
+    const t = (TX.view || {})[i]; if (!t) return;
+    const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
+    const n = Math.max(...t.ppl.map(p => (Number(p.hours) || 0) + (Number(p.shop_hours) || 0)));
+    $("tvTitle").textContent = "Truck " + (t.truck || "-") + " · " + new Date(t.date + "T00:00:00").toLocaleDateString("en-CA", { weekday:"short", month:"short", day:"numeric", year:"numeric" });
+    $("tvSub").textContent = "";
+    const row = (k, v) => `<div class="frow"><span class="t"><small>${k}</small><b>${v}</b></span></div>`;
+    $("tvBody").innerHTML = row("Client", esc(t.client || "No client")) + row("Job #", esc(t.job || "-"))
+      + row("Truck hours", n.toLocaleString("en-CA", { maximumFractionDigits:2 }) + " h")
+      + row("Scope of work", esc((TX.scopes || {})[t.date + "|" + t.truck + "|" + (t.job || "")] || (TX.scopes || {})[t.date + "|" + t.truck] || "Not entered").replace(/\n/g, "<br>"))
+      + row("Crew", t.ppl.map(p => esc(who(p.crew_name)) + (p.role ? " (" + esc(p.role) + ")" : "")).join("<br>"));
+    TX.cur = { date:t.date, truck:t.truck || "-", client:t.client || "", job:t.job || "", hours:n,
+      scope:(TX.scopes || {})[t.date + "|" + t.truck + "|" + (t.job || "")] || (TX.scopes || {})[t.date + "|" + t.truck] || "",
+      crew:t.ppl.map(p => who(p.crew_name) + (p.role ? " (" + p.role + ")" : "")) };
+    openOnly("tixView"); $("tixView").scrollTop = 0;
+  }
+  // ---------- client copy: branded PDF with coding stamp + signature ----------
+  const CC = { ink:false };
+  function ccPad() {
+    const c = $("ccSig"), r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+    c.width = r.width * dpr; c.height = r.height * dpr;
+    const x = c.getContext("2d"); x.scale(dpr, dpr); x.lineWidth = 2.2; x.lineCap = x.lineJoin = "round"; x.strokeStyle = "#120b07";
+    CC.ink = false; CC.ctx = x;
+  }
+  (() => {
+    const c = $("ccSig"); let on = false;
+    const pos = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    c.addEventListener("pointerdown", e => { on = true; c.setPointerCapture(e.pointerId); const [a, b] = pos(e); CC.ctx.beginPath(); CC.ctx.moveTo(a, b); });
+    c.addEventListener("pointermove", e => { if (!on) return; const [a, b] = pos(e); CC.ctx.lineTo(a, b); CC.ctx.stroke(); CC.ink = true; });
+    ["pointerup", "pointercancel"].forEach(ev => c.addEventListener(ev, () => on = false));
+  })();
+  $("tvCopy").addEventListener("click", () => {
+    ["afe", "code", "gl", "rep"].forEach(k => $("cc-" + k).value = ""); msg("ccMsg", ""); CC.ink = false;
+    if ($("tvAdd").checked) { openOnly("ccSheet"); $("ccSheet").scrollTop = 0; requestAnimationFrame(ccPad); }
+    else ccBuild($("tvCopy"), "Download PDF");
+  });
+  $("ccClear").addEventListener("click", ccPad);
+  $("ccBack").addEventListener("click", () => openOnly("tixView"));
+  const loadJs = src => new Promise((ok, no) => { const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = () => no(new Error("no signal")); document.head.appendChild(el); });
+  const imgData = src => new Promise((ok, no) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext("2d").drawImage(im, 0, 0); ok({ d:c.toDataURL("image/png"), w:im.naturalWidth, h:im.naturalHeight }); }; im.onerror = no; im.src = src; });
+  $("ccGo").addEventListener("click", () => ccBuild($("ccGo"), "Download / send PDF"));
+  async function ccBuild(btn, label) {
+    const t = TX.cur; if (!t) return;
+    btn.disabled = true; btn.textContent = "Building PDF..."; msg("ccMsg", "");
+    try {
+      if (!window.jspdf) await loadJs("https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js");
+      const { jsPDF } = window.jspdf, pdf = new jsPDF({ unit:"pt", format:"letter" }), W = 612, M = 40;
+      const DARK = [18, 11, 7], GOLD = [227, 184, 115], INK = [40, 32, 26], SOFT = [120, 108, 96], LINE = [214, 204, 190];
+      const dt = new Date(t.date + "T00:00:00"), no = "MPC-" + t.truck + "-" + t.date.replace(/-/g, "");
+      const v = k => $("cc-" + k).value.trim(), fmtDate = dt.toLocaleDateString("en-CA", { year:"numeric", month:"long", day:"numeric" });
+      const hair = (x1, yy, x2, c) => { pdf.setDrawColor(...(c || LINE)); pdf.setLineWidth(.6); pdf.line(x1, yy, x2, yy); };
+      // jsPDF mis-measures spaced-out text when right-aligned, so right-aligned labels are placed by hand
+      const spaced = (txt, x, yy, sp, right) => { txt = txt.toUpperCase(); pdf.setCharSpace(sp); pdf.text(txt, right ? x - pdf.getTextWidth(txt) - sp * (txt.length - 1) : x, yy); pdf.setCharSpace(0); };
+      const label = (txt, x, yy, o) => { pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5); pdf.setTextColor(...SOFT); spaced(txt, x, yy, 1.1, o && o.align === "right"); };
+      const val = (txt, x, yy, sz, o) => { pdf.setFont("helvetica", "bold"); pdf.setFontSize(sz || 11.5); pdf.setTextColor(...INK); pdf.text(String(txt || "-"), x, yy, o); };
+      // header: slim dark band, logo left, document title right
+      pdf.setFillColor(...DARK); pdf.rect(0, 0, W, 78, "F"); pdf.setFillColor(...GOLD); pdf.rect(0, 78, W, 1.5, "F");
+      try { const lg = await imgData("logo-cream.png"), lh = 48; pdf.addImage(lg.d, "PNG", M, 15, lh * lg.w / lg.h, lh); } catch (e) {}
+      pdf.setTextColor(243, 235, 223); pdf.setFont("helvetica", "normal"); pdf.setFontSize(9); spaced("Field ticket", W - M, 36, 2.4, true);
+      pdf.setTextColor(...GOLD); pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.text(no, W - M, 54, { align:"right" });
+      // ticket details: four columns, two rows, hairlines only
+      let y = 122; const cw = (W - 2 * M) / 4, col = n => M + cw * n;
+      label("Client", col(0), y); label("Job no.", col(2), y); label("Unit", col(3), y);
+      val(pdf.splitTextToSize(t.client || "-", cw * 2 - 12)[0], col(0), y + 17); val(t.job, col(2), y + 17); val(t.truck, col(3), y + 17);
+      y += 34; hair(M, y, W - M); y += 22;
+      label("Date", col(0), y); label("Crew", col(2), y); label("Truck hours", W - M, y, { align:"right" });
+      val(fmtDate, col(0), y + 17); pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5); pdf.setTextColor(...INK); pdf.text(t.crew.length ? t.crew : ["-"], col(2), y + 17, { lineHeightFactor:1.4 });
+      val(t.hours.toLocaleString("en-CA", { maximumFractionDigits:2 }), W - M, y + 19, 20, { align:"right" });
+      y += 26 + Math.max(0, t.crew.length - 1) * 15; hair(M, y, W - M); y += 34;
+      // scope of work
+      label("Description of work", M, y); y += 18;
+      const lines = pdf.splitTextToSize(t.scope || "-", W - 2 * M).slice(0, 22);
+      pdf.setFont("helvetica", "normal"); pdf.setFontSize(10.5); pdf.setTextColor(...INK); pdf.text(lines, M, y, { lineHeightFactor:1.5 });
+      // sign-off block pinned near the bottom
+      y = Math.max(y + lines.length * 15.75 + 30, 560); hair(M, y, W - M, DARK); y += 26;
+      const half = (W - 2 * M - 40) / 2, sx = M + half + 40;
+      label("Client coding", M, y); label("Client approval", sx, y); y += 34;
+      [["AFE no.", v("afe")], ["Cost code", v("code")], ["GL / cost centre", v("gl")]].forEach(([l, x], k) => {
+        const ly = y + k * 36; if (x) val(x, M, ly - 5, 10.5); hair(M, ly, M + half); label(l, M, ly + 11); });
+      if (CC.ink) { const c = $("ccSig"), ih = Math.min(48, half * c.height / c.width), iw = ih * c.width / c.height; pdf.addImage(c.toDataURL("image/png"), "PNG", sx, y - ih + 2, iw, ih); }
+      hair(sx, y, sx + half); label("Signature", sx, y + 11);
+      if (v("rep")) val(v("rep"), sx, y + 31, 10.5); hair(sx, y + 36, sx + half * .62); label("Print name", sx, y + 47);
+      if (CC.ink) val(new Date().toLocaleDateString("en-CA"), sx + half * .7, y + 31, 10.5); hair(sx + half * .7, y + 36, sx + half); label("Date", sx + half * .7, y + 47);
+      // footer
+      hair(M, 744, W - M); pdf.setFont("helvetica", "normal"); pdf.setFontSize(7.5); pdf.setTextColor(...SOFT);
+      pdf.text("Montney Projects Corp  ·  101-10601 82 Ave, Clairmont, AB T8X 5G9", M, 758);
+      pdf.text("780-897-7356  ·  general@montneyprojects.com  ·  montneyprojects.com", W - M, 758, { align:"right" });
+      const name = "Montney Field Ticket " + no + ".pdf", blob = pdf.output("blob"), file = new File([blob], name, { type:"application/pdf" });
+      if (navigator.canShare && navigator.canShare({ files:[file] })) {
+        try { await navigator.share({ files:[file], title:name }); } catch (e) { if (e.name !== "AbortError") throw e; }
+      } else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+      toast("Field ticket PDF ready");
+    } catch (err) { const m = "Couldn't build the PDF (" + err.message + "). Check your signal and try again."; msg("ccMsg", m, "bad"); toast(m); }
+    btn.disabled = false; btn.textContent = label;
+  }
+  $("tvClose").addEventListener("click", closeAll);
+  $("tList").addEventListener("click", e => { const r = e.target.closest("[data-vk]"); if (r) openTixView(r.dataset.vk); });
+  $("tList").addEventListener("keydown", e => { const r = e.target.closest("[data-vk]"); if (r && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openTixView(r.dataset.vk); } });
   async function loadTixSheet() {
     const today = iso(new Date()), [from, to] = tixRange();
     $("tSetup").hidden = true; $("tSrc").textContent = "Live from the ticketing sheet. Tap a ticket to fix it.";
@@ -2056,6 +2178,7 @@
       btn.disabled = false; btn.textContent = "Submit field ticket";
       if (j.error === "code") { store("mp_tk_code", ""); tkCode = ""; $("tkForm").hidden = true; $("tkGate").hidden = false; msg("tkGateMsg", "The crew code changed. Enter the new one.", "bad"); return; }
       if (!j.saved) { msg("tkMsg", "Not saved. Try again.", "bad"); return; }
+      if (S.user && d.scope) sb.from("ticket_scopes").insert({ work_date:d.date, truck:d.truck, client:d.client, job:d.job, scope:d.scope }).then(() => {}, () => {});
       if (S.user) sb.functions.invoke("activity", { body:{ mode:"ticket", t:{ date:d.date, truck:d.truck, client:d.client, job:d.job, hours:d.hours, shop:d.shop, fitter:d.fitter } } }).catch(() => {});
       $("tkDoneMsg").textContent = j.ok ? `Added to the ${j.tab || d.truck} tab. Your hours show on your calendar within the hour.` : "Saved, but it couldn't be put on your truck's tab. Tell the office so they can move it.";
       const crewTxt = [d.fitter, d.helper && d.helper !== "No helper" ? d.helper : ""].filter(Boolean).map(shortName).join(" + ");
@@ -2127,7 +2250,7 @@
 
   // ---------- chat ----------
   const C = { people:[], byId:{}, threads:[], open:null, msgs:[], urls:{}, chan:null, pending:[], sel:null, mode:"dm", rx:{} };
-  const SHEETS = ["newSheet", "infoSheet", "msgSheet", "pushSheet", "seenSheet", "tixSheet"];
+  const SHEETS = ["newSheet", "infoSheet", "msgSheet", "pushSheet", "seenSheet", "tixSheet", "tixView", "ccSheet"];
   function openOnly(id) { SHEETS.forEach(x => $(x).classList.toggle("on", x === id)); $("scrim").classList.add("on"); }
   function closeAll() { SHEETS.forEach(x => $(x).classList.remove("on")); if (!$("sheet").classList.contains("on") && !$("bioSheet").classList.contains("on")) $("scrim").classList.remove("on"); }
   const nameOf = id => (C.byId[id] && C.byId[id].name) || "Someone";
