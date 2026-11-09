@@ -1574,7 +1574,11 @@
       sb.from("safety_forms").select("crew_name").eq("work_date", today),
       countOnly ? Promise.resolve({ data:[] }) : sb.from("ticket_scopes").select("work_date,truck,job,scope,created_at").gte("work_date", from).lte("work_date", to).order("created_at").limit(5000),
     ]);
-    TX.scopes = {}; (sc.data || []).forEach(x => { TX.scopes[x.work_date + "|" + x.truck] = x.scope; TX.scopes[x.work_date + "|" + x.truck + "|" + (x.job || "")] = x.scope; });
+    // Scope by date + truck + job. The truck-only fallback is used only when that truck sent one job that day,
+    // so a ticket never picks up the scope written for a different job (or client) on the same truck.
+    TX.scopes = {}; const scJobs = {}, scLast = {};
+    (sc.data || []).forEach(x => { const k = x.work_date + "|" + x.truck; TX.scopes[k + "|" + (x.job || "")] = x.scope; (scJobs[k] = scJobs[k] || new Set()).add(x.job || ""); scLast[k] = x.scope; });
+    Object.keys(scJobs).forEach(k => { if (scJobs[k].size === 1) TX.scopes[k] = scLast[k]; });
     const rows = uniqH(h.data).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0);   // same double-copy guard as the calendar
     const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
     const first = c => String(who(c)).split(/\s+/)[0];
@@ -1657,6 +1661,7 @@
   const loadJs = src => new Promise((ok, no) => { const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = () => no(new Error("no signal")); document.head.appendChild(el); });
   const imgData = src => new Promise((ok, no) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext("2d").drawImage(im, 0, 0); ok({ d:c.toDataURL("image/png"), w:im.naturalWidth, h:im.naturalHeight }); }; im.onerror = no; im.src = src; });
   $("ccGo").addEventListener("click", () => ccBuild($("ccGo"), "Download / send PDF"));
+  function ccSave(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
   async function ccBuild(btn, label) {
     const t = TX.cur; if (!t) return;
     btn.disabled = true; btn.textContent = "Building PDF..."; msg("ccMsg", "");
@@ -1705,8 +1710,9 @@
       pdf.text("780-897-7356  ·  general@montneyprojects.com  ·  montneyprojects.com", W - M, 758, { align:"right" });
       const name = "Montney Field Ticket " + no + ".pdf", blob = pdf.output("blob"), file = new File([blob], name, { type:"application/pdf" });
       if (navigator.canShare && navigator.canShare({ files:[file] })) {
-        try { await navigator.share({ files:[file], title:name }); } catch (e) { if (e.name !== "AbortError") throw e; }
-      } else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+        // iPhone Safari refuses share() when building the PDF took longer than the tap allows (first use, slow signal): download it instead.
+        try { await navigator.share({ files:[file], title:name }); } catch (e) { if (e.name === "NotAllowedError") ccSave(blob, name); else if (e.name !== "AbortError") throw e; }
+      } else ccSave(blob, name);
       toast("Field ticket PDF ready");
     } catch (err) { const m = "Couldn't build the PDF (" + err.message + "). Check your signal and try again."; msg("ccMsg", m, "bad"); toast(m); }
     btn.disabled = false; btn.textContent = label;
