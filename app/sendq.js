@@ -86,6 +86,10 @@
     return pdf.then(function (path) {
       item.pdfPath = path;
       var rec = Object.assign({}, item.track);
+      // Stamp the time it was filled in on the phone, not the time it finally got signal. The database refuses a
+      // form whose date is more than 3 days before its created_at, so a Friday form that sat on a phone over a long
+      // weekend used to be refused on Tuesday and the worker lost the check mark for a day they did the form.
+      if (!rec.created_at && item.saved) rec.created_at = item.saved;
       if (path) rec.details = Object.assign({}, rec.details || {}, { pdf: path });
       return fetch(TRACK_URL + "safety_forms", { method: "POST", keepalive: true,
         headers: { apikey: TRACK_KEY, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(rec) });
@@ -154,10 +158,11 @@
           return p.then(function () { return get(it.id); }).then(function (fresh) {
             if (!fresh || busy[fresh.id]) return;               // already sent, or being saved right now
             it = fresh;
-            if (it.dbDone && Date.now() - it.id > STALE) return del(it.id);
+            // Not if the database refused it: then this email is the only copy the office will ever get.
+            if (it.dbDone && !it.dbRejected && Date.now() - it.id > STALE) return del(it.id);
             try { localStorage.setItem(LOCK, String(Date.now())); } catch (e) {}
             return post(it).then(function () {
-              if (!it.dbDone) { sent.push(it.id); track(it.track); }
+              if (!it.dbDone) { sent.push(it.id); track(it.track && it.saved && !it.track.created_at ? Object.assign({ created_at: it.saved }, it.track) : it.track); }
               return del(it.id);
             }).catch(function (e) {
               if (e && e.message === "unsupported") { it.unsupported = true; return put(it); }
