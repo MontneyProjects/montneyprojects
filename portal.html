@@ -516,7 +516,11 @@
     }
     const [{ data, error }, f] = await Promise.all([q, fq]);
     if (tok !== state.hTok) return; // the admin already picked someone or some period else
-    state.hours = error ? [] : (data || []);
+    // The ticket sync can copy the same person onto the same ticket twice, which doubled their pay-period hours here.
+    // Count an exact repeat once (same check as the crew app); different lines (e.g. 2 h + 0.5 h) still add up.
+    // Role isn't part of the check: the same hours as fitter and as helper on one ticket is one line typed twice.
+    const seen = new Set();
+    state.hours = (error ? [] : (data || [])).filter(r => { const k = [r.crew_name, r.work_date, r.truck, r.client, r.job, r.hours, r.shop_hours].join('|'); if (seen.has(k)) return false; seen.add(k); return true; });
     state.forms = f.error ? [] : (f.data || []);
     state.crew = crew;
     state.selDay = null;

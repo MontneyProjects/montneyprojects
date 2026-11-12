@@ -1,6 +1,6 @@
 // MontneyPro service worker: makes the app installable and opens fast. Tries the network first (4 s limit),
 // so changes on the site show up right away; falls back to the saved copy when there's no signal.
-const CACHE = "montneypro-v43";
+const CACHE = "montneypro-v47";
 const SHELL = ["./", "index.html", "sendq.js", "draft.js", "manifest.webmanifest", "icon-192.png", "icon-512.png", "logo-cream.png", "truck.jpg", "flha.html", "pretrip.html", "toolbox.html"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => {
@@ -11,15 +11,19 @@ self.addEventListener("fetch", e => {
   if (r.method !== "GET" || u.origin !== location.origin) return;   // never touch Supabase, Google or form posts
   // Pages, scripts and the manifest always check the site for a newer copy (the site's own 10 min cache was hiding updates).
   const fresh = /\.(html|js|webmanifest)$|\/$/.test(u.pathname);
+  // Pages are saved and looked up without the ?part. The home-screen icon opens /app/?source=homescreen and phone pings
+  // open /app/?chat=... or ?orders=...; those never matched the saved /app/ page, so on one bar the app sat on a blank
+  // screen waiting for the network instead of opening from the phone after 4 s.
+  const key = r.mode === "navigate" ? u.origin + u.pathname : r;
   const net = fetch(fresh ? new Request(r, { cache:"no-cache" }) : r).then(res => {
-    if (res.ok && u.pathname.startsWith("/app/")) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(r, copy)); }
+    if (res.ok && u.pathname.startsWith("/app/")) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(key, copy)); }
     return res;
   });
   net.catch(() => {}); // the race below handles failures; this just keeps the console quiet
-  const fallback = () => caches.match(r).then(m => m || caches.match("index.html"));
+  const fallback = () => caches.match(key).then(m => m || caches.match("index.html"));
   // On one bar the network can hang for a minute with no error. After 4 s, use the saved copy if there is one;
   // the network answer still updates the saved copy for next time. No saved copy: keep waiting on the network.
-  const slow = new Promise(ok => setTimeout(ok, 4000)).then(() => caches.match(r)).then(m => m || net);
+  const slow = new Promise(ok => setTimeout(ok, 4000)).then(() => caches.match(key)).then(m => m || net);
   e.respondWith(Promise.race([net, slow]).catch(fallback));
 });
 
