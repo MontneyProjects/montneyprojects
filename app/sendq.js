@@ -86,11 +86,16 @@
     return pdf.then(function (path) {
       item.pdfPath = path;
       var rec = Object.assign({}, item.track);
+      // Stamp the time it was filled in on the phone, not the time it finally got signal. The database refuses a
+      // form whose date is more than 3 days before its created_at, so a Friday form that sat on a phone over a long
+      // weekend used to be refused on Tuesday and the worker lost the check mark for a day they did the form.
+      if (!rec.created_at && item.saved) rec.created_at = item.saved;
       if (path) rec.details = Object.assign({}, rec.details || {}, { pdf: path });
       return fetch(TRACK_URL + "safety_forms", { method: "POST", keepalive: true,
         headers: { apikey: TRACK_KEY, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(rec) });
     }).then(function (r) {
       if (!r.ok && r.status >= 500) return false;
+      if (!r.ok) item.dbRejected = true;                       // refused for good (e.g. name no longer on the crew list)
       item.dbDone = true; return true;                          // a 4xx won't succeed on retry, same as before
     }).catch(function () { return false; });
   }
@@ -153,10 +158,11 @@
           return p.then(function () { return get(it.id); }).then(function (fresh) {
             if (!fresh || busy[fresh.id]) return;               // already sent, or being saved right now
             it = fresh;
-            if (it.dbDone && Date.now() - it.id > STALE) return del(it.id);
+            // Not if the database refused it: then this email is the only copy the office will ever get.
+            if (it.dbDone && !it.dbRejected && Date.now() - it.id > STALE) return del(it.id);
             try { localStorage.setItem(LOCK, String(Date.now())); } catch (e) {}
             return post(it).then(function () {
-              if (!it.dbDone) { sent.push(it.id); track(it.track); }
+              if (!it.dbDone) { sent.push(it.id); track(it.track && it.saved && !it.track.created_at ? Object.assign({ created_at: it.saved }, it.track) : it.track); }
               return del(it.id);
             }).catch(function (e) {
               if (e && e.message === "unsupported") { it.unsupported = true; return put(it); }
@@ -194,7 +200,8 @@
     post1: post, // one straight send, used only if the phone can't save the form
     // The phone can't keep the form (private browsing, storage full, older iPhone, an app's built-in browser):
     // put the record and PDF straight into the database anyway. Resolves true once it's in.
-    direct: function (o) { return saveToDb({ id: Date.now(), blob: o.blob, track: o.track || null }); },
+    // A refused record (4xx) is NOT in, so this resolves false and the form falls back to the email send instead of saying "Sent".
+    direct: function (o) { var it = { id: Date.now(), blob: o.blob, track: o.track || null }; return saveToDb(it).then(function (ok) { return ok && !it.dbRejected; }); },
 
     count: function () { return all().then(pending).catch(function () { return 0; }); },
     // What's still waiting on this phone (not in the database yet), so a form page can say so.

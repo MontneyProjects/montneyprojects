@@ -937,8 +937,10 @@
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
   const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || "null"); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } };
   // The ticket sync can copy the same person onto the same ticket twice (same truck, day, job and hours),
-  // which doubled their calendar. Count an exact repeat once; different lines (e.g. 2 h + 0.5 h) still add up.
-  const uniqH = rows => { const seen = new Set(); return (rows || []).filter(r => { const k = [r.work_date, r.truck, r.job, r.role, r.hours, r.shop_hours].join("|"); if (seen.has(k)) return false; seen.add(k); return true; }); };
+  // which doubled their calendar and the admin ticket totals. Count an exact repeat once; different lines (e.g. 2 h + 0.5 h) still add up.
+  // Role is left out on purpose: one person can't be fitter and helper on the same ticket at once, so the same hours under both
+  // roles is the same line typed twice (Mason, truck 002, Oct 11 counted 20 h instead of 10 h).
+  const uniqH = rows => { const seen = new Set(); return (rows || []).filter(r => { const k = [r.crew_name, r.work_date, r.truck, r.client, r.job, r.hours, r.shop_hours].join("|"); if (seen.has(k)) return false; seen.add(k); return true; }); };
   const iso = d => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
   const fmtH = n => (Math.round(n * 10) / 10).toString();
   const toast = t => { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("on"), 2600); };
@@ -1148,7 +1150,7 @@
     const end = new Date(), start = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 6);
     const [f, h] = await Promise.all([
       sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end)),
-      sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end))
+      sb.from("hours").select("work_date,hours,shop_hours,truck,client,job,role").eq("crew_name", me).gte("work_date", iso(start)).lte("work_date", iso(end))
     ]);
     const sent = {}, worked = {};
     (f.data || []).forEach(r => (sent[r.work_date] = sent[r.work_date] || new Set()).add(r.form));
@@ -1172,7 +1174,7 @@
     const nowD = new Date(), ms = new Date(nowD.getFullYear(), nowD.getMonth(), 1), me2 = new Date(nowD.getFullYear(), nowD.getMonth() + 1, 0);
     $("boardRange").textContent = ms.toLocaleDateString("en-CA", { month:"long" });
     const [hrs, lb] = await Promise.all([
-      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", s).lte("work_date", e) : Promise.resolve({ data:[] }),
+      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,client,job,role").eq("crew_name", me).gte("work_date", s).lte("work_date", e) : Promise.resolve({ data:[] }),
       sb.rpc("flha_leaderboard", { p_start:iso(ms), p_end:iso(me2) })
     ]);
     const rowsH = uniqH(hrs.data);
@@ -1574,12 +1576,12 @@
       sb.from("safety_forms").select("crew_name").eq("work_date", today),
       countOnly ? Promise.resolve({ data:[] }) : sb.from("ticket_scopes").select("work_date,truck,job,scope,created_at").gte("work_date", from).lte("work_date", to).order("created_at").limit(5000),
     ]);
-    TX.scopes = {}; (sc.data || []).forEach(x => { TX.scopes[x.work_date + "|" + x.truck] = x.scope; TX.scopes[x.work_date + "|" + x.truck + "|" + (x.job || "")] = x.scope; });
-    // The sheet sync copies the same person onto the same ticket twice. Count an exact repeat once so a truck's hours aren't doubled.
-    const seenH = new Set();
-    const rows = (h.data || []).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0).filter(r => {
-      const k = [r.work_date, r.truck, r.client, r.job, r.crew_name, r.role, r.hours, r.shop_hours].join("|");
-      if (seenH.has(k)) return false; seenH.add(k); return true; });
+    // Scope by date + truck + job. The truck-only fallback is used only when that truck sent one job that day,
+    // so a ticket never picks up the scope written for a different job (or client) on the same truck.
+    TX.scopes = {}; const scJobs = {}, scLast = {};
+    (sc.data || []).forEach(x => { const k = x.work_date + "|" + x.truck; TX.scopes[k + "|" + (x.job || "")] = x.scope; (scJobs[k] = scJobs[k] || new Set()).add(x.job || ""); scLast[k] = x.scope; });
+    Object.keys(scJobs).forEach(k => { if (scJobs[k].size === 1) TX.scopes[k] = scLast[k]; });
+    const rows = uniqH(h.data).filter(r => (Number(r.hours) || 0) + (Number(r.shop_hours) || 0) > 0);   // same double-copy guard as the calendar
     const who = c => (S.roster.find(x => x.crew_name === c) || {}).display_name || c || "";
     const first = c => String(who(c)).split(/\s+/)[0];
     // Fitters who worked today (sent a safety form) but have no ticket yet
@@ -1661,6 +1663,7 @@
   const loadJs = src => new Promise((ok, no) => { const el = document.createElement("script"); el.src = src; el.onload = ok; el.onerror = () => no(new Error("no signal")); document.head.appendChild(el); });
   const imgData = src => new Promise((ok, no) => { const im = new Image(); im.onload = () => { const c = document.createElement("canvas"); c.width = im.naturalWidth; c.height = im.naturalHeight; c.getContext("2d").drawImage(im, 0, 0); ok({ d:c.toDataURL("image/png"), w:im.naturalWidth, h:im.naturalHeight }); }; im.onerror = no; im.src = src; });
   $("ccGo").addEventListener("click", () => ccBuild($("ccGo"), "Download / send PDF"));
+  function ccSave(blob, name) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
   async function ccBuild(btn, label) {
     const t = TX.cur; if (!t) return;
     btn.disabled = true; btn.textContent = "Building PDF..."; msg("ccMsg", "");
@@ -1709,8 +1712,9 @@
       pdf.text("780-897-7356  ·  general@montneyprojects.com  ·  montneyprojects.com", W - M, 758, { align:"right" });
       const name = "Montney Field Ticket " + no + ".pdf", blob = pdf.output("blob"), file = new File([blob], name, { type:"application/pdf" });
       if (navigator.canShare && navigator.canShare({ files:[file] })) {
-        try { await navigator.share({ files:[file], title:name }); } catch (e) { if (e.name !== "AbortError") throw e; }
-      } else { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+        // iPhone Safari refuses share() when building the PDF took longer than the tap allows (first use, slow signal): download it instead.
+        try { await navigator.share({ files:[file], title:name }); } catch (e) { if (e.name === "NotAllowedError") ccSave(blob, name); else if (e.name !== "AbortError") throw e; }
+      } else ccSave(blob, name);
       toast("Field ticket PDF ready");
     } catch (err) { const m = "Couldn't build the PDF (" + err.message + "). Check your signal and try again."; msg("ccMsg", m, "bad"); toast(m); }
     btn.disabled = false; btn.textContent = label;
@@ -1737,7 +1741,7 @@
     rows.filter(t => t.date === today).forEach(t => { inToday.add(first(t.fitter)); inToday.add(first(t.helper)); });
     const worked = new Set((forms.data || []).map(f => f.crew_name));
     const missing = S.roster.filter(c => c.active !== false && c.fitter && worked.has(c.crew_name) && !inToday.has(c.crew_name));
-    $("tMissing").innerHTML = missing.length && to >= today ? `<div class="fday"><h3>Not in yet today</h3>${missing.map(c => `<div class="frow"><span class="t"><b>${esc(c.display_name)}</b><small>Worked today, no field ticket</small></span><span class="tag bad">Missing</span></div>`).join("")}</div>` : "";
+    $("tMissing").innerHTML = missing.length && to >= today ? `<div class="fday"><h3>No ticket yet today</h3>${missing.map(c => `<div class="frow"><span class="t"><b>${esc(c.display_name)}</b><small>Sent a safety form today, no field ticket yet</small></span><span class="tag warn">Not yet</span></div>`).join("")}</div>` : "";
     const keep = (id, vals, all) => { const el = $(id), cur = el.value; el.innerHTML = `<option value="">${all}</option>` + [...new Set(vals)].filter(Boolean).sort().map(v => `<option${v === cur ? " selected" : ""}>${esc(v)}</option>`).join(""); };
     keep("tTruck", rows.map(t => t.tab), "All trucks"); keep("tClient", rows.map(t => t.client), "All clients");
     const tv = $("tTruck").value, cv = $("tClient").value;
@@ -2010,7 +2014,7 @@
     $("calTitle").textContent = m.toLocaleDateString("en-CA", { month:"long", year:m.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
     const tok = S.calTok = (S.calTok || 0) + 1; // quick taps on < > overlap; only the last one may draw
     const [h, f] = await Promise.all([
-      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,job,role").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] }),
+      me ? sb.from("hours").select("work_date,hours,shop_hours,truck,client,job,role").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] }),
       me ? sb.from("safety_forms").select("work_date,form").eq("crew_name", me).gte("work_date", first).lte("work_date", last) : Promise.resolve({ data:[] })
     ]);
     if (tok !== S.calTok) return;
