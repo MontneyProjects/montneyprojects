@@ -516,7 +516,11 @@
     }
     const [{ data, error }, f] = await Promise.all([q, fq]);
     if (tok !== state.hTok) return; // the admin already picked someone or some period else
-    state.hours = error ? [] : (data || []);
+    // The ticket sync can copy the same person onto the same ticket twice, which doubled their pay-period hours here.
+    // Count an exact repeat once (same check as the crew app); different lines (e.g. 2 h + 0.5 h) still add up.
+    // Role isn't part of the check: the same hours as fitter and as helper on one ticket is one line typed twice.
+    const seen = new Set();
+    state.hours = (error ? [] : (data || [])).filter(r => { const k = [r.crew_name, r.work_date, r.truck, r.client, r.job, r.hours, r.shop_hours].join('|'); if (seen.has(k)) return false; seen.add(k); return true; });
     state.forms = f.error ? [] : (f.data || []);
     state.crew = crew;
     state.selDay = null;
@@ -547,12 +551,16 @@
 
   async function loadBoard() {
     const p = state.period, card = $('boardCard');
-    const { data, error } = await sb.rpc('flha_leaderboard', { p_start: isoDate(p.s), p_end: isoDate(p.e) });
+    // The FLHA gift card is decided by calendar month, same as the crew app's board. This board used the pay period
+    // (1st-15th / 16th-end), so from the 16th on it showed different places and a different minimum-days cut-off
+    // than the app. It now shows the whole month the selected pay period is in.
+    const ms = new Date(p.s.getFullYear(), p.s.getMonth(), 1), me2 = new Date(p.s.getFullYear(), p.s.getMonth() + 1, 0);
+    const { data, error } = await sb.rpc('flha_leaderboard', { p_start: isoDate(ms), p_end: isoDate(me2) });
     if (error) { card.hidden = true; return; }
     card.hidden = false;
-    $('boardPeriod').textContent = shortDate(p.s) + ' to ' + shortDate(p.e);
+    $('boardPeriod').textContent = ms.toLocaleDateString('en-CA', { month: 'long', year: 'numeric' });
     const me = crewNameOf(state.profile);
-    // To be ranked you need at least half as many days as whoever worked the most in the period.
+    // To be ranked you need at least half as many days as whoever worked the most this month.
     const minDays = Math.ceil(Math.max(0, ...(data || []).map(r => r.worked_days || 0)) / 2);
     const rows = (data || []).map(r => ({ ...r, pct: r.worked_days ? r.flha_days / r.worked_days : -1, q: r.worked_days > 0 && r.worked_days >= minDays }))
       .sort((a, b) => (b.q - a.q) || b.pct - a.pct || b.flha_days - a.flha_days || a.display_name.localeCompare(b.display_name));
