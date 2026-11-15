@@ -149,14 +149,14 @@
         // Re-read it first: the list above can be stale if the form page saved this same form to the database
         // while we were busy with an earlier one, and sending it again would log the form twice.
         return p.then(function () { return get(it.id); }).then(function (fresh) {
-          if (!fresh || fresh.dbDone || busy[fresh.id]) return;
+          if (!fresh || fresh.dbDone || busy[fresh.id] || inFlight(fresh)) return;
           return saveToDb(fresh).then(function (ok) { if (ok) { sent.push(fresh.id); return put(fresh); } });
         });
       }, Promise.resolve()).then(function () {
         // Part 2: the email copy. Already in the database and over a day old with no email? Stop trying.
         return items.reduce(function (p, it) {
           return p.then(function () { return get(it.id); }).then(function (fresh) {
-            if (!fresh || busy[fresh.id]) return;               // already sent, or being saved right now
+            if (!fresh || busy[fresh.id] || inFlight(fresh)) return; // already sent, or being saved right now (here or on another page)
             it = fresh;
             // Not if the database refused it: then this email is the only copy the office will ever get.
             if (it.dbDone && !it.dbRejected && Date.now() - it.id > STALE) return del(it.id);
@@ -174,6 +174,12 @@
       .then(function (r) { running = null; dropLock(); notify(r); return r; });
     return running;
   }
+  // A form page is putting this form in the database right now. `busy` only covers this page; the app home or a
+  // second form page open on the same phone has its own `busy`, read the form from the phone's storage half-way
+  // through, and sent it a second time (Josh's Toolbox on Nov 13 went in twice, 2 seconds apart). The mark is
+  // saved with the form, so every page sees it. It expires after 2 minutes in case the page was closed mid-send.
+  function inFlight(it) { return !!it.sending && Date.now() - it.sending < 120000; }
+
   // Forms that haven't reached the office at all yet (an email still retrying doesn't count).
   function pending(l) { return (l || []).filter(function (it) { return !it.dbDone; }).length; }
 
@@ -186,8 +192,9 @@
       var item = { id: Date.now(), blob: o.blob, fname: o.fname, subject: o.subject, fields: o.fields || {}, track: o.track || null, saved: new Date().toISOString() };
       // Save on the phone, then put it in the database right away (no waiting on the email or another page).
       busy[item.id] = true;
+      if (navigator.onLine !== false) item.sending = Date.now();   // tells other open pages to leave it alone
       return put(item).then(function () { return navigator.onLine === false ? false : saveToDb(item); })
-        .then(function (ok) { return ok ? put(item).then(function () { return true; }) : false; })
+        .then(function (ok) { delete item.sending; return put(item).then(function () { return ok; }); })
         .catch(function (e) { delete busy[item.id]; throw e; })
         .then(function (inDb) {
           delete busy[item.id];
