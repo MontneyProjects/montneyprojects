@@ -1457,6 +1457,10 @@
       return { station:r.vendor || null, date:/^\d{4}-\d{2}-\d{2}$/.test(r.date || "") ? r.date : null, total:n(r.total), gst:n(r.gst), litres:n(r.litres), ppl:n(r.price_per_litre), category:r.category || null, items:r.items || null };
     } catch (e) { return null; }
   }
+  // A date read off a receipt is only used if it's believable: not after tomorrow and not older than `days`.
+  // The receipt reader can misread the year (25 for 26) or a smudged digit; the old code put any such date straight in,
+  // so a fill-up could save under last year and drop out of this month's list and totals without anyone noticing.
+  const okDate = (d, days) => { if (!d) return false; const t = new Date(d + "T12:00:00"), now = new Date(); return !isNaN(t) && t - now < 864e5 * 1.5 && now - t < 864e5 * days; };
   function parseReceipt(text) {
     const t = text.replace(/\r/g, ""), out = {};
     // drop "compare at / you saved / savings" lines so their prices never get picked as the total
@@ -1488,14 +1492,14 @@
   $("fFile").addEventListener("change", async () => {
     const file = $("fFile").files[0]; $("fFile").value = ""; if (!file) return;
     let prep; try { prep = await prepImage(file); } catch (e) { prep = { upload:file, ocr:null }; }
-    F.file = prep.upload;
+    F.file = prep.upload; F.path = null;
     $("fShot").innerHTML = `<img src="${URL.createObjectURL(prep.upload)}" alt="Receipt">`;
     if (!AUTO_READ) { msg("fMsg", "Receipt attached. Type in the litres and total."); return; }
     $("fReading").hidden = false; msg("fMsg", "");
     try {
       let p = await aiRead(prep.upload, "fuel");
       if (!p) p = parseReceipt(await ocrRead(prep.ocr || prep.upload));
-      if (p.date) { $("fDate").value = p.date; $("fDate").dataset.auto = ""; }
+      if (okDate(p.date, 45)) { $("fDate").value = p.date; $("fDate").dataset.auto = ""; }
       if (p.station && !$("fStation").value) $("fStation").value = p.station;
       if (p.litres) $("fLitres").value = p.litres;
       if (p.ppl) $("fPpl").value = p.ppl;
@@ -1522,19 +1526,25 @@
     if (total >= 20000) { msg("fMsg", "Total looks too high. Check the receipt.", "bad"); return; }
     if (gst != null && (gst >= 2000 || gst > total)) { msg("fMsg", "GST can't be more than the total. Check the receipt.", "bad"); return; }
     $("fSave").disabled = true; msg("fMsg", "Saving...");
-    let path = null;
-    if (F.file) {
+    // On weak signal a save can go through while the reply gets lost, so the app says "Didn't save" and the worker taps
+    // Save again. The fill-up keeps the same id (and the photo the same file) until it's confirmed, so the second tap
+    // can't log it twice; the database just says "already there" and that counts as saved.
+    if (!F.rowId) F.rowId = crypto.randomUUID();
+    let path = F.path || null;
+    if (F.file && !path) {
       path = `${S.user.id}/${$("fDate").value}-${crypto.randomUUID().slice(0, 8)}.jpg`;
       const up = await sb.storage.from("fuel-receipts").upload(path, F.file, { contentType:"image/jpeg" });
-      if (up.error) { $("fSave").disabled = false; msg("fMsg", "The receipt photo didn't upload. Check your signal and try again.", "bad"); return; }
+      if (up.error && !/exist|duplicate/i.test(up.error.message || "")) { $("fSave").disabled = false; msg("fMsg", "The receipt photo didn't upload. Check your signal and try again.", "bad"); return; }
+      F.path = path;
     }
-    const row = { truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim().slice(0, 120) || null,
+    const row = { id:F.rowId, truck:F.truck, crew_name:S.crew ? S.crew.crew_name : null, fill_date:$("fDate").value, station:$("fStation").value.trim().slice(0, 120) || null,
       litres, price_per_l:ppl, gst, total, odometer:$("fOdo").value.trim().slice(0, 20) || null, receipt_path:path, paid_by:F.paid };
-    const { error } = await sb.from("fuel_logs").insert(row);
+    let { error } = await sb.from("fuel_logs").insert(row);
+    if (error && error.code === "23505") error = null;   // this same fill-up already went in on an earlier tap
     $("fSave").disabled = false;
     if (error) { msg("fMsg", /^(22|23)/.test(error.code || "") ? "Didn't save. One of the numbers doesn't look right. Check them against the receipt." : "Didn't save. Check your signal and try again.", "bad"); return; }
     toast(F.paid === "employee" ? "Saved. Flagged for pay-back ⛽" : "Fuel saved ⛽"); msg("fMsg", ""); setPaid(null);
-    F.file = null; ["fStation", "fLitres", "fPpl", "fGst", "fTotal", "fOdo"].forEach(id => $(id).value = "");
+    F.file = null; F.path = null; F.rowId = null; ["fStation", "fLitres", "fPpl", "fGst", "fTotal", "fOdo"].forEach(id => $(id).value = "");
     if ($("fDate").dataset.auto === "1") $("fDate").value = iso(new Date());
     $("fShot").innerHTML = `${svg("camera")}Snap the receipt<small>The app reads the litres and cost for you</small>`;
     loadFuel();
@@ -1947,6 +1957,7 @@
   $("eFile").addEventListener("change", async () => {
     const file = $("eFile").files[0]; $("eFile").value = ""; if (!file) return;
     msg("eMsg", "");
+    E.path = null;
     if (file.type === "application/pdf") { E.file = file; E.type = "application/pdf"; $("eShot").innerHTML = `${svg("file")}${esc(file.name)}<small>PDF attached. Fill in the numbers below.</small>`; return; }
     let prep; try { prep = await prepImage(file); } catch (e) { prep = { upload:file, ocr:null }; }
     E.file = prep.upload; E.type = "image/jpeg";
@@ -1956,7 +1967,7 @@
     try {
       let p = await aiRead(prep.upload, "expense"), raw = "";
       if (!p) { raw = await ocrRead(prep.ocr || prep.upload); p = parseReceipt(raw); }
-      if (p.date) { $("eDate").value = p.date; $("eDate").dataset.auto = ""; }
+      if (okDate(p.date, 366)) { $("eDate").value = p.date; $("eDate").dataset.auto = ""; }
       if (p.station) $("eVendor").value = p.station;
       if (p.total) $("eTotal").value = p.total.toFixed(2);
       if (p.gst != null) $("eGst").value = p.gst.toFixed(2);
@@ -1972,19 +1983,24 @@
     const eGst = num($("eGst").value); if (eGst != null && eGst > total) { msg("eMsg", "GST can't be more than the total. Check the receipt.", "bad"); return; }
     if (!E.file && !confirm("Save without a receipt photo?")) return;
     $("eSave").disabled = true; msg("eMsg", "Saving...");
-    let path = null;
-    if (E.file) {
+    // Same as fuel: keep one id per receipt until it's confirmed, so a lost reply plus a second tap can't put the
+    // receipt into QuickBooks twice.
+    if (!E.rowId) E.rowId = crypto.randomUUID();
+    let path = E.path || null;
+    if (E.file && !path) {
       path = `${$("eDate").value.slice(0, 7)}/${$("eDate").value}-${crypto.randomUUID().slice(0, 8)}.${E.type === "application/pdf" ? "pdf" : "jpg"}`;
       const up = await sb.storage.from("expense-receipts").upload(path, E.file, { contentType:E.type });
-      if (up.error) { $("eSave").disabled = false; msg("eMsg", "The photo didn't upload. Check your signal and try again.", "bad"); return; }
+      if (up.error && !/exist|duplicate/i.test(up.error.message || "")) { $("eSave").disabled = false; msg("eMsg", "The photo didn't upload. Check your signal and try again.", "bad"); return; }
+      E.path = path;
     }
-    const row = { exp_date:$("eDate").value, vendor:$("eVendor").value.trim().slice(0, 120) || null, total, gst:eGst, category:$("eCat").value, paid_personally:$("ePersonal").checked, paid_with:paidWith, notes:$("eNote").value.trim().slice(0, 500) || null, receipt_path:path };
-    const { error } = await sb.from("expenses").insert(row);
+    const row = { id:E.rowId, exp_date:$("eDate").value, vendor:$("eVendor").value.trim().slice(0, 120) || null, total, gst:eGst, category:$("eCat").value, paid_personally:$("ePersonal").checked, paid_with:paidWith, notes:$("eNote").value.trim().slice(0, 500) || null, receipt_path:path };
+    let { error } = await sb.from("expenses").insert(row);
+    if (error && error.code === "23505") error = null;   // already went in on an earlier tap
     $("eSave").disabled = false;
     if (error) { msg("eMsg", /^(22|23)/.test(error.code || "") ? "Didn't save. One of the numbers doesn't look right. Check them against the receipt." : "Didn't save. Check your signal and try again.", "bad"); return; }
     lsSet("mp_last_card", paidWith);
     toast("Receipt saved 🧾"); msg("eMsg", "Saved. It goes into QuickBooks within the hour.", "ok");
-    E.file = null; ["eVendor", "eTotal", "eGst", "eNote"].forEach(id => $(id).value = "");
+    E.file = null; E.path = null; E.rowId = null; ["eVendor", "eTotal", "eGst", "eNote"].forEach(id => $(id).value = "");
     if ($("eDate").dataset.auto === "1") $("eDate").value = iso(new Date());
     $("ePersonal").checked = false;
     $("eShot").innerHTML = `${svg("camera")}Snap or upload a receipt<small>Photo or PDF</small>`;
