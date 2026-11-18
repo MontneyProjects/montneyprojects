@@ -2511,18 +2511,27 @@
     const body = $("msgIn").value.trim(), files = C.pending.map(p => p.file);
     if (!body && !files.length) return;
     $("msgIn").value = ""; C.pending = []; renderTray(); grow();
+    // Retrying the same message after "Didn't send" keeps the same ID and the already-uploaded photos.
+    // On weak signal the first try can go in with the reply lost; the retry then gets "already there"
+    // instead of posting the message (and pinging everyone) a second time.
+    const r = C.retry && C.retry.thread === t.id && C.retry.body === body && C.retry.files.length === files.length && C.retry.files.every((f, i) => f === files[i]) ? C.retry : null;
+    const mid = r ? r.id : crypto.randomUUID(), done = r ? r.done : new Map();
+    C.retry = null;
     const tmp = { id:"", pending:true, sender_id:S.user.id, body, created_at:new Date().toISOString(), attachments:files.map(f => ({ type:f.type, name:f.name, size:f.size, local:URL.createObjectURL(f) })) };
     C.msgs.push(tmp); renderMsgs(true);
     try {
       const atts = [];
       for (const f of files) {
+        if (done.has(f)) { atts.push(done.get(f)); continue; }
         const s2 = await shrinkImage(f);
         const path = `${t.id}/${crypto.randomUUID()}.${String(s2.ext).replace(/[^a-z0-9]/g, "").slice(0, 5) || "bin"}`;
         const up = await sb.storage.from("chat-media").upload(path, s2.blob, { contentType:s2.type || "application/octet-stream" });
         if (up.error) throw up.error;
-        atts.push({ path, name:f.name, type:s2.type || f.type, size:s2.blob.size, w:s2.w, h:s2.h });
+        const a = { path, name:f.name, type:s2.type || f.type, size:s2.blob.size, w:s2.w, h:s2.h };
+        done.set(f, a); atts.push(a);
       }
-      const { data, error } = await sb.from("chat_messages").insert({ thread_id:t.id, sender_id:S.user.id, body:body || null, attachments:atts }).select().single();
+      let { data, error } = await sb.from("chat_messages").insert({ id:mid, thread_id:t.id, sender_id:S.user.id, body:body || null, attachments:atts }).select().single();
+      if (error && error.code === "23505") ({ data, error } = await sb.from("chat_messages").select("*").eq("id", mid).single());
       if (error) throw error;
       C.msgs = C.msgs.filter(m => m !== tmp);
       if (!C.msgs.find(m => m.id === data.id)) { await signUrls([data]); C.msgs.push(data); }
@@ -2531,6 +2540,9 @@
       loadThreads();
     } catch (err) {
       C.msgs = C.msgs.filter(m => m !== tmp); renderMsgs();
+      C.retry = { thread:t.id, body, files, id:mid, done };
+      // Put the photos back in the tray too; before, a failed send kept the text but dropped the attachments.
+      if (C.open && C.open.id === t.id) { C.pending = files.map(f => ({ file:f, local:URL.createObjectURL(f) })).concat(C.pending); renderTray(); }
       $("msgIn").value = body; grow(); toast("Didn't send. Check your signal and try again.");
     }
   });
