@@ -75,6 +75,8 @@
   .kicker::before { content:""; width:28px; height:1px; background:var(--gold); }
   #login h1 { margin:10px 0 24px; font-size:32px; line-height:1.08; font-weight:800; letter-spacing:-.025em; }
   #loginForm .btn { margin-top:6px; }
+  .offforms { margin-top:18px; } .offforms p { margin:0 0 10px; font-size:14px; color:var(--muted); }
+  .offforms .row { display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; } .offforms .btn { padding:0 8px; margin:0; }
   .gate-foot { margin-top:16px; display:flex; justify-content:space-between; align-items:center; font-size:14px; }
   .gate-foot span { font-size:12px; color:var(--dim); font-weight:600; }
   #lock { align-items:center; text-align:center; background:linear-gradient(180deg, rgba(18,11,7,.55) 0%, rgba(18,11,7,.78) 45%, var(--bg) 78%), url(truck.jpg) 28% 0/auto 76vh no-repeat; }
@@ -500,6 +502,10 @@
     <button class="btn" id="liBtn">Sign in</button>
     <p class="msg" id="liMsg" aria-live="polite"></p>
   </form>
+  <div class="offforms" id="liOffline" hidden>
+    <p>No signal? You can still fill in your safety forms. They save on the phone and send on their own when you get service.</p>
+    <div class="row"><a class="btn ghost" href="flha.html">FLHA</a><a class="btn ghost" href="pretrip.html">Pre-Trip</a><a class="btn ghost" href="toolbox.html">Toolbox</a></div>
+  </div>
   <div class="gate-foot"><button class="link" id="forgot" type="button">Forgot password?</button><span>Montney Projects Corp</span></div>
 </section>
 
@@ -960,12 +966,20 @@
   const started = Date.now();
   const hideSplash = () => setTimeout(() => $("splash").classList.add("gone"), Math.max(0, 900 - (Date.now() - started)));
 
-  if (!window.supabase) { hideSplash(); $("login").hidden = false; msg("liMsg", "No connection. Check your signal and reopen MontneyPro.", "bad"); return; }
+  if (!window.supabase) { hideSplash(); $("login").hidden = false; $("liOffline").hidden = false; msg("liMsg", "No connection. Check your signal and reopen MontneyPro.", "bad"); return; }
   const AUTO_READ = false;   // receipt auto-read off (no AI key). Set true once an Anthropic key is saved.
   const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:true, autoRefreshToken:true } });
   const S = { user:null, profile:null, admin:false, crew:null, roster:[], view:"home", calMonth:null };
   const crewNameOf = p => p ? ((p.ticket_name || "").trim() || (p.full_name || "").trim().split(/\s+/)[0] || "").toLowerCase() : "";
   const meName = () => S.crew ? S.crew.crew_name : crewNameOf(S.profile);
+  // With no signal, sign-in can't work, so the sign-in screen shows links to the safety forms (they work offline).
+  const offForms = on => { $("liOffline").hidden = !on; };
+  const netErr = e => !!e && (e.status === 0 || e.name === "AuthRetryableFetchError" || /failed to fetch|load failed|network/i.test(e.message || ""));
+  addEventListener("offline", () => { if (!S.user) offForms(true); });
+  // Signing out with no signal fails quietly in Supabase and keeps the session, so nothing changed on screen: the app stayed
+  // open after "Sign out", "Use password instead" left a blank screen, and an idle phone opened to the splash forever.
+  // Show the sign-in screen right away; Supabase finishes the sign-out when it can.
+  function signOutNow() { sb.auth.signOut().catch(() => {}); route(null); }
 
   // ---------- auth ----------
   // After 15 minutes of no use the app locks. Face ID / fingerprint unlocks it; without it, they sign in again.
@@ -982,7 +996,7 @@
   const rand = () => crypto.getRandomValues(new Uint8Array(32));
 
   ["touchstart", "click", "keydown", "scroll"].forEach(ev => addEventListener(ev, () => { if (S.user && !S.locked) touch(); }, { passive:true, capture:true }));
-  function timeUp() { if (bioFor(S.user.id)) lock(); else { closeSheet(); closeBio(); sb.auth.signOut(); } }
+  function timeUp() { if (bioFor(S.user.id)) lock(); else { closeSheet(); closeBio(); signOutNow(); } }
   function idleCheck() { if (S.user && !S.locked && expired()) timeUp(); }
   document.addEventListener("visibilitychange", () => { if (!document.hidden) idleCheck(); });
   addEventListener("pageshow", idleCheck);
@@ -1003,7 +1017,7 @@
       S.locked = false; touch(); $("lock").hidden = true; $("app").hidden = false; paint();
     } catch (e) { msg("lkMsg", BIO + " didn't work. Try again or use your password.", "bad"); }
   });
-  $("lkPw").addEventListener("click", () => { S.locked = false; $("lock").hidden = true; sb.auth.signOut(); });
+  $("lkPw").addEventListener("click", () => { S.locked = false; $("lock").hidden = true; signOutNow(); });
 
   // first sign-in on a phone: ask if they want Face ID / fingerprint
   const closeBio = () => { $("bioSheet").classList.remove("on"); if (!$("sheet").classList.contains("on")) $("scrim").classList.remove("on"); };
@@ -1043,6 +1057,7 @@
     const { error } = await sb.auth.signInWithPassword({ email, password:$("liPass").value });
     if (!error) store("mp_email", email);
     $("liBtn").disabled = false; signingIn = false;
+    if (netErr(error)) { offForms(true); msg("liMsg", "No signal, so you can't sign in right now. Try again when you have service.", "bad"); return; }
     msg("liMsg", error ? "Wrong email or password." : "", error ? "bad" : "");
   }
   $("loginForm").addEventListener("submit", e => { e.preventDefault(); signIn(); });
@@ -1059,14 +1074,14 @@
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo:location.origin + "/portal.html" });
     msg("liMsg", error ? error.message : "If that email has an account, a reset link is on its way.", error ? "bad" : "ok");
   });
-  $("signOut").addEventListener("click", () => { closeSheet(); sb.auth.signOut(); });
+  $("signOut").addEventListener("click", () => { closeSheet(); signOutNow(); });
 
   sb.auth.onAuthStateChange((evt, session) => setTimeout(() => route(session), 0));
 
   async function route(session) {
-    if (!session) { S.user = null; S.locked = false; $("liPass").value = ""; prevLen = 0; $("app").hidden = true; $("lock").hidden = true; $("login").hidden = false; hideSplash(); return; }
+    if (!session) { S.user = null; S.locked = false; $("liPass").value = ""; prevLen = 0; $("app").hidden = true; $("lock").hidden = true; $("login").hidden = false; if (navigator.onLine === false) offForms(true); hideSplash(); return; }
     let needLock = false;
-    if (expired()) { if (!bioFor(session.user.id)) { sb.auth.signOut(); return; } needLock = true; }
+    if (expired()) { if (!bioFor(session.user.id)) { signOutNow(); return; } needLock = true; }
     else if (!S.locked) touch();
     if (S.user && S.user.id === session.user.id) { if (needLock && !S.locked) lock(); return; }
     S.user = session.user;
@@ -2188,6 +2203,8 @@
     const d = { pin:tkCode, date:v("date"), hours:v("hours"), truck:v("truck"), client:v("client"), job:v("job"), supervisor:v("supervisor"), location:v("location"),
                 fitter:v("fitter"), helper:v("helper"), scope:v("scope"), shop:v("shop"), sub:$("tk-sub").checked ? "Yes" : "" };
     if (!d.truck) { msg("tkMsg", "Tap your truck number at the top.", "bad"); return; }
+    // Same name as fitter and helper puts two lines in the sheet for one person (double hours) and none for the real helper.
+    if (d.fitter && d.helper && d.fitter.toLowerCase() === d.helper.toLowerCase()) { msg("tkMsg", "The fitter and helper are the same person. Fix the helper, or pick No helper.", "bad"); $("tk-helper").focus(); return; }
     if (!(Number(d.hours) > 0) && !(Number(d.shop) > 0)) { msg("tkMsg", "Enter billable hours, shop hours, or both.", "bad"); return; }
     if (Number(d.hours || 0) + Number(d.shop || 0) > 24) { msg("tkMsg", "Billable plus shop hours can't be more than 24 in one day.", "bad"); return; }
     if (Number(d.hours) > 0 && (!d.client || d.client === "Shop")) { msg("tkMsg", "Pick the client for the billable hours.", "bad"); return; }
