@@ -11,6 +11,7 @@
   var KEY = "montney_draft_" + location.pathname.replace(/[^a-z0-9]+/gi, "_");
   var SKIP = /submitForm|saveCopy|clearSig/;
   var log = [], restoring = false, timer = null;
+  function key(el) { return el.id || el.name || el.tagName; }
   function today() { var d = new Date(); return d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate(); }
   function clickables() { return Array.prototype.slice.call(document.querySelectorAll("[onclick]")); }
   function fields() { return Array.prototype.slice.call(document.querySelectorAll("input,select,textarea")).filter(function (el) { return el.type !== "file" && el.type !== "hidden"; }); }
@@ -22,7 +23,7 @@
       var vals = fields().map(function (el) { return el.type === "checkbox" || el.type === "radio" ? (el.checked ? 1 : 0) : el.value; });
       var touched = log.length || fields().some(function (el) { return el.type !== "date" && el.type !== "time" && el.tagName !== "SELECT" && el.value; });
       if (!touched) return;
-      try { localStorage.setItem(KEY, JSON.stringify({ day: today(), clicks: log, vals: vals })); } catch (e) {}
+      try { localStorage.setItem(KEY, JSON.stringify({ day: today(), clicks: log, vals: vals, keys: fields().map(key) })); } catch (e) {}
     }, 400);
   }
   function clear() { log = []; clearTimeout(timer); try { localStorage.removeItem(KEY); } catch (e) {} }
@@ -36,11 +37,15 @@
   }, true);
   document.addEventListener("input", save, true);
   document.addEventListener("change", save, true);
+  // A list the worker picked themselves (their name, a crew role) is never put back to the draft's value later.
+  document.addEventListener("change", function (e) { if (!restoring && e.target && e.target.tagName === "SELECT") e.target.dataset.userSet = "1"; }, true);
 
   function putValues(d, onlySelects) {
     var f = fields();
     d.vals.forEach(function (v, i) {
       var el = f[i]; if (!el || (onlySelects && el.tagName !== "SELECT")) return;
+      if (onlySelects && el.dataset.userSet) return;               // they changed it since the draft came back
+      if (d.keys && d.keys[i] !== key(el)) return;                  // the form changed (app update) since this draft: don't put a value in the wrong box
       if (el.type === "checkbox" || el.type === "radio") el.checked = !!v;
       else if (v !== "" && v != null) {
         if (el.tagName === "SELECT" && !Array.prototype.some.call(el.options, function (o) { return o.value === v; })) return;
