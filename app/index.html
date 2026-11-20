@@ -1260,8 +1260,15 @@
     if (!S.admin) return;
     const since = new Date(); since.setDate(since.getDate() - 90);
     const { data } = await sb.from("safety_forms").select("id,work_date,created_at,crew_name,site,details,defect_fixed_at").eq("form", "Pre-Trip").not("details", "is", null).gte("work_date", iso(since)).order("created_at", { ascending:false });
-    const rows = (data || []).filter(r => r.details && Array.isArray(r.details.defects) && r.details.defects.length);
-    const open = rows.filter(r => !r.defect_fixed_at);
+    const all = data || [];
+    const rows = all.filter(r => r.details && Array.isArray(r.details.defects) && r.details.defects.length);
+    // Every Pre-Trip with a defect used to stay "open" until someone tapped it, so the same two defects on one truck
+    // showed as 20+ open cards (one per day). "Open" now shows the newest Pre-Trip for each truck, and only if that
+    // newest one still has defects and isn't marked fixed. Older reports for the same truck stay under "All".
+    const unitKey = u => { const v = String(u || "").trim(), dg = v.replace(/\D/g, ""); if (dg && dg.length <= 3 && v.replace(/[\d\s\-#.]/g, "").length <= 3) { const k = dg.padStart(3, "0"); if (TRUCKS.includes(k)) return k; } return v.toUpperCase() || "?"; };
+    const newest = new Map(), stamp = r => r.work_date + "|" + r.created_at;   // by work day, so a form that waited offline doesn't count as newer
+    all.forEach(r => { const k = unitKey(r.details && r.details.unit), cur = newest.get(k); if (!cur || stamp(r) > stamp(cur)) newest.set(k, r); });
+    const open = rows.filter(r => !r.defect_fixed_at && (!(r.details.unit || "").trim() || newest.get(unitKey(r.details.unit)) === r));
     $("defCard").hidden = false;
     $("defCounts").innerHTML = open.length ? `<span style="color:var(--bad2)">${open.length} open</span><span style="color:var(--muted)">${rows.length} in 90 days</span>` : `<span style="color:var(--ok2)">No open defects</span>`;
     if (countOnly) return;
