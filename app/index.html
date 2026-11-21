@@ -2215,6 +2215,11 @@
     if (!(Number(d.hours) > 0) && !(Number(d.shop) > 0)) { msg("tkMsg", "Enter billable hours, shop hours, or both.", "bad"); return; }
     if (Number(d.hours || 0) + Number(d.shop || 0) > 24) { msg("tkMsg", "Billable plus shop hours can't be more than 24 in one day.", "bad"); return; }
     if (Number(d.hours) > 0 && (!d.client || d.client === "Shop")) { msg("tkMsg", "Pick the client for the billable hours.", "bad"); return; }
+    // Job # is filled in again from the last ticket, so a typo rides along every day (truck 009 sent "Did my give me one"
+    // as the job number Nov 15-19, and it went on the client PDF that way). Ask once when it has no digits and
+    // isn't N/A or a client name.
+    if (d.job && Number(d.hours) > 0 && !/\d/.test(d.job) && !/^(n\/?a|none|tbd|-+)$/i.test(d.job) && d.job.length > 6
+        && !confirm(`Job # is "${d.job}". That doesn't look like a job number.\n\nOK = send it like that\nCancel = fix the Job #`)) { $("tk-job").focus(); $("tk-job").select(); return; }
     // Tickets sent in the morning are usually for yesterday, but the date starts on today. A wrong "today" ticket
     // puts hours on the wrong day and stops tonight's ticket reminder. Ask once if the date was never touched.
     const now = new Date();
