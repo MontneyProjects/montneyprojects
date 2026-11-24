@@ -95,7 +95,10 @@
         headers: { apikey: TRACK_KEY, "Content-Type": "application/json", Prefer: "return=minimal" }, body: JSON.stringify(rec) });
     }).then(function (r) {
       if (!r.ok && r.status >= 500) return false;
-      if (!r.ok) item.dbRejected = true;                       // refused for good (e.g. name no longer on the crew list)
+      // 409 = this exact form (same PDF) is already in. It happens when the first try went in but the phone lost the
+      // reply and tried again (Mason's Pre-Trip went in twice 6 seconds apart on Nov 21). It's in, so it's sent, not refused.
+      if (r.status === 409) { item.dbDone = true; return true; }
+      if (!r.ok) item.dbRejected = true;                      // refused for good (e.g. name no longer on the crew list)
       item.dbDone = true; return true;                          // a 4xx won't succeed on retry, same as before
     }).catch(function () { return false; });
   }
