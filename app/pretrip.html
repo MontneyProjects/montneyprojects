@@ -237,7 +237,8 @@
         </div>
         <div class="field-group">
           <label>Vehicle Unit #</label>
-          <input type="text" id="unitNum" placeholder="e.g. MPC-01" />
+          <input type="text" id="unitNum" placeholder="e.g. 009" list="unitList" autocomplete="off" />
+          <datalist id="unitList"><option value="001"></option><option value="002"></option><option value="003"></option><option value="004"></option><option value="005"></option><option value="006"></option><option value="009"></option><option value="Skid steer"></option></datalist>
         </div>
         <div class="field-group">
           <label>License Plate</label>
@@ -644,6 +645,10 @@
     td.appendChild(btn); td.appendChild(inp); td.appendChild(box);
   });
 
+  var PT_TRUCKS = ["001", "002", "003", "004", "005", "006", "009"];
+  // "PU-003", "pu 003", "3", "00-2" -> "003" / "002" when it's one of our trucks; anything else is kept as typed.
+  function ptUnit(v) { v = String(v || "").trim(); var dg = v.replace(/\D/g, ""); if (dg && dg.length <= 3 && v.replace(/[\d\s\-#.]/g, "").length <= 3) { var k = ("00" + dg).slice(-3); if (PT_TRUCKS.indexOf(k) >= 0) return k; } return v; }
+  function ptStore(k, v) { try { if (v === undefined) return JSON.parse(localStorage.getItem(k) || "null"); localStorage.setItem(k, JSON.stringify(v)); } catch (e) { return null; } }
   function preTripDetails() {
     var v = function (id) { var n = document.getElementById(id); return n ? n.value.trim().slice(0, 60) : ""; };
     var defects = [];
@@ -668,11 +673,22 @@
     if (!date)  { alert("Please enter the date before saving."); return; }
     if (date > maxFormDate()) { alert("The date is in the future. Fix the date before sending."); return; }
     if (!document.getElementById("unitNum").value.trim()) { alert("Please enter the unit number."); document.getElementById("unitNum").focus(); return; }
+    // One truck was going in as "PU 003", "PU-003" and "PU003" (and 002 as "00-2"), which split its defect history
+    // into separate trucks on the office list. A truck number is saved the same way every time: 001, 002, 003...
+    var unitEl = document.getElementById("unitNum"), unit = ptUnit(unitEl.value); unitEl.value = unit;
+    // Odometer: numbers only, and not lower than the last Pre-Trip this phone sent for the same truck
+    // (Nov 17 went in at 320,888 km after 321,231 km the day before; Nov 11 had the plate number in it).
+    var odoEl = document.getElementById("odometer"), odo = odoEl.value.replace(/[\s,.]/g, "").replace(/km$/i, "");
+    if (odo && !/^\d{3,7}$/.test(odo)) { alert("The odometer should be the km on the dash, numbers only."); odoEl.focus(); return; }
+    odoEl.value = odo;
+    var lastOdo = (ptStore("mp_pt_odo") || {})[unit];
+    if (odo && lastOdo && Number(odo) < Number(lastOdo) && !confirm("Odometer " + Number(odo).toLocaleString("en-CA") + " km is lower than the last Pre-Trip on this phone for unit " + unit + " (" + Number(lastOdo).toLocaleString("en-CA") + " km). Is it right?\n\nOK = send it\nCancel = fix it")) { odoEl.focus(); return; }
     var rows = Array.prototype.filter.call(document.querySelectorAll("tr"), function (tr) { return tr.querySelector(".pf-btn"); });
     var left = rows.filter(function (tr) { return !tr.querySelector(".pf-btn.active"); }).length;
     if (rows.length && left === rows.length) { alert("Nothing is checked yet. Tap OK or D on each item."); return; }
     if (left && !confirm(left + (left === 1 ? " item isn't" : " items aren't") + " checked. Send anyway?")) return;
     if (!sigInked) { alert("Please sign in the signature box before sending."); document.getElementById("sigCanvas").scrollIntoView({ block: "center" }); return; }
+    if (odo) { var om = ptStore("mp_pt_odo") || {}; om[unit] = odo; ptStore("mp_pt_odo", om); }   // latest one sent, so a one-off typo only asks once
     sendPdf({ title: "Montney Projects Corp \u2013 Pre-Trip Inspection", who: document.getElementById("driverName").value.trim(), date: date, extra: { Unit: document.getElementById("unitNum").value.trim(), "Defects noted": String(document.querySelectorAll(".pf-btn.fail.active").length) }, track: Object.assign(trackInfo("Pre-Trip", "driverName", date), { details: preTripDetails() }) });
   }
 </script>
