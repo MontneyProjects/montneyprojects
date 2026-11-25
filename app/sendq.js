@@ -97,7 +97,12 @@
       if (!r.ok && r.status >= 500) return false;
       // 409 = this exact form (same PDF) is already in. It happens when the first try went in but the phone lost the
       // reply and tried again (Mason's Pre-Trip went in twice 6 seconds apart on Nov 21). It's in, so it's sent, not refused.
-      if (r.status === 409) { item.dbDone = true; return true; }
+      // Only a duplicate (code 23505) counts. The database also answers 409 when the name isn't on the crew list
+      // (23503), and that one is refused: the email copy must still go out, even a day late.
+      if (r.status === 409) return r.json().catch(function () { return {}; }).then(function (b) {
+        if (!b || b.code !== "23505") item.dbRejected = true;
+        item.dbDone = true; return true;
+      });
       if (!r.ok) item.dbRejected = true;                      // refused for good (e.g. name no longer on the crew list)
       item.dbDone = true; return true;                          // a 4xx won't succeed on retry, same as before
     }).catch(function () { return false; });
