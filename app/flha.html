@@ -599,8 +599,8 @@
           <div class="time-row">
             <input type="time" id="time" />
             <div class="ampm-group">
-              <button class="ampm-btn" id="amBtn" onclick="setAMPM('AM')">AM</button>
-              <button class="ampm-btn" id="pmBtn" onclick="setAMPM('PM')">PM</button>
+              <button class="ampm-btn" id="amBtn" onclick="pickAMPM('AM')">AM</button>
+              <button class="ampm-btn" id="pmBtn" onclick="pickAMPM('PM')">PM</button>
             </div>
           </div>
         </div>
@@ -777,6 +777,15 @@
     document.getElementById('amBtn').classList.toggle('active', val === 'AM');
     document.getElementById('pmBtn').classList.toggle('active', val === 'PM');
   }
+  // Tapping AM/PM moves the time itself (07:30 -> 19:30), and a typed time lights the matching button.
+  // Before, the buttons only changed colour, so a PDF could read "07:30" with PM lit, or "14:00" with AM lit.
+  function pickAMPM(val) {
+    const tm = document.getElementById('time'), m = /^(\d{2}):(\d{2})/.exec(tm.value || '');
+    if (m) { let h = Number(m[1]); if (val === 'PM' && h < 12) h += 12; if (val === 'AM' && h >= 12) h -= 12; tm.value = String(h).padStart(2, '0') + ':' + m[2]; tm.dataset.touched = '1'; }
+    setAMPM(val);
+  }
+  ['input', 'change'].forEach(function (ev) { document.getElementById('time').addEventListener(ev, function () {
+    const m = /^(\d{2}):/.exec(this.value || ''); if (m) setAMPM(Number(m[1]) < 12 ? 'AM' : 'PM'); }); });
   // Auto-detect AM/PM from current time
   const hour = new Date().getHours();
   setAMPM(hour < 12 ? 'AM' : 'PM');
