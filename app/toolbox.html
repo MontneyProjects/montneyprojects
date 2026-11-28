@@ -874,12 +874,20 @@ var SEND_TO = "safety@montneyprojects.com";
 var lastPdf = null, lastName = "", sending = false;
 function say(t, c) { var m = document.getElementById("sendMsg"); m.textContent = t; m.className = c || ""; }
 async function buildPdf() {
+  // Empty boxes print their grey hint text ("Client name", "Full name", "WO / Job #") in the same dark ink as a real
+  // answer, so the office copy read as if those had been filled in. Blank the hints while the PDF is drawn.
+  var hints = Array.prototype.filter.call(document.querySelectorAll("input[placeholder],textarea[placeholder]"), function (i) { return !i.value; });
+  hints.forEach(function (i) { i.dataset.hint = i.placeholder; i.placeholder = ""; });
+  // Toolbox: an attendance row with no name printed as a person ("3 · Fitter"). Leave blank rows off the PDF.
+  var blankRows = Array.prototype.filter.call(document.querySelectorAll("#crewRows tr"), function (tr) { var i = tr.querySelector("input"); return i && !i.value.trim(); });
+  blankRows.forEach(function (tr) { tr.style.display = "none"; });
+  function unhide() { hints.forEach(function (i) { i.placeholder = i.dataset.hint; delete i.dataset.hint; }); blankRows.forEach(function (tr) { tr.style.display = ""; }); }
   document.body.classList.add("capturing"); window.scrollTo(0, 0);
   await new Promise(function (r) { requestAnimationFrame(function () { setTimeout(r, 60); }); });
   var el = document.body, w = el.scrollWidth, hh = el.scrollHeight, sc = Math.min(1.25, Math.sqrt(4e6 / (w * hh)));
   var canvas;
   try { canvas = await html2canvas(el, { scale: sc, backgroundColor: "#ffffff", width: w, height: hh, windowWidth: w, scrollX: 0, scrollY: 0, logging: false }); }
-  finally { document.body.classList.remove("capturing"); }
+  finally { document.body.classList.remove("capturing"); unhide(); }
   var pdf = new jspdf.jsPDF({ unit: "pt", format: "letter", compress: true }), pw = 612, ph = 792, mg = 22;
   var iw = pw - 2 * mg, k = iw / canvas.width, pagePx = Math.floor((ph - 2 * mg) / k), y = 0, first = true, cx = canvas.getContext("2d");
   while (y < canvas.height) {
